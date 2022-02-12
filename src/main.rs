@@ -24,7 +24,8 @@ use self::maps::Maps;
 
 mod maps;
 
-static MAPS: Lazy<Mutex<Maps>> = Lazy::new(|| Mutex::new(Maps::default()));
+/// Global maps cache refreshed by a separate task.
+static MAPS: Lazy<Mutex<Maps>> = Lazy::new(|| Mutex::new(Maps::new()));
 
 /// The current for a specific location.
 ///
@@ -198,7 +199,7 @@ async fn main() -> Result<()> {
         .await?;
     let shutdown = rocket.shutdown();
 
-    let maps_updater = tokio::spawn(Maps::run());
+    let maps_updater = tokio::spawn(maps::run());
 
     select! {
         result = rocket.launch() => {
