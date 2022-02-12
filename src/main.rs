@@ -11,21 +11,22 @@
 )]
 #![deny(missing_docs)]
 
+use std::sync::Arc;
+
 use color_eyre::Result;
 use geocoding::{Forward, Openstreetmap, Point};
-use once_cell::sync::Lazy;
 use rocket::serde::json::Json;
 use rocket::serde::Serialize;
 use rocket::tokio::sync::Mutex;
 use rocket::tokio::{self, select};
-use rocket::{get, routes, FromFormField};
+use rocket::{get, routes, FromFormField, State};
 
 use self::maps::Maps;
 
 mod maps;
 
-/// Global maps cache refreshed by a separate task.
-static MAPS: Lazy<Mutex<Maps>> = Lazy::new(|| Mutex::new(Maps::new()));
+/// A handle to access the in-memory cached maps.
+type MapsHandle = Arc<Mutex<Maps>>;
 
 /// The current for a specific location.
 ///
@@ -129,7 +130,12 @@ impl Metric {
 /// Calculates and returns the forecast.
 ///
 /// The provided list `metrics` determines what will be included in the forecast.
-async fn forecast(lat: f64, lon: f64, metrics: Vec<Metric>) -> Forecast {
+async fn forecast(
+    lat: f64,
+    lon: f64,
+    metrics: Vec<Metric>,
+    _maps_handle: &State<MapsHandle>,
+) -> Forecast {
     let mut forecast = Forecast::new(lat, lon);
 
     // Expand the `All` metric if present, deduplicate otherwise.
@@ -173,17 +179,26 @@ async fn address_position(address: String) -> Option<(f64, f64)> {
 
 /// Handler for retrieving the forecast for an address.
 #[get("/forecast?<address>&<metrics>")]
-async fn forecast_address(address: String, metrics: Vec<Metric>) -> Option<Json<Forecast>> {
+async fn forecast_address(
+    address: String,
+    metrics: Vec<Metric>,
+    maps_handle: &State<MapsHandle>,
+) -> Option<Json<Forecast>> {
     let (lat, lon) = address_position(address).await?;
-    let forecast = forecast(lat, lon, metrics).await;
+    let forecast = forecast(lat, lon, metrics, maps_handle).await;
 
     Some(Json(forecast))
 }
 
 /// Handler for retrieving the forecast for a geocoded position.
 #[get("/forecast?<lat>&<lon>&<metrics>", rank = 2)]
-async fn forecast_geo(lat: f64, lon: f64, metrics: Vec<Metric>) -> Json<Forecast> {
-    let forecast = forecast(lat, lon, metrics).await;
+async fn forecast_geo(
+    lat: f64,
+    lon: f64,
+    metrics: Vec<Metric>,
+    maps_handle: &State<MapsHandle>,
+) -> Json<Forecast> {
+    let forecast = forecast(lat, lon, metrics, maps_handle).await;
 
     Json(forecast)
 }
@@ -193,13 +208,16 @@ async fn forecast_geo(lat: f64, lon: f64, metrics: Vec<Metric>) -> Json<Forecast
 async fn main() -> Result<()> {
     color_eyre::install()?;
 
+    let maps = Maps::new();
+    let maps_handle = Arc::new(Mutex::new(maps));
+    let maps_updater = tokio::spawn(maps::run(Arc::clone(&maps_handle)));
+
     let rocket = rocket::build()
+        .manage(maps_handle)
         .mount("/", routes![forecast_address, forecast_geo])
         .ignite()
         .await?;
     let shutdown = rocket.shutdown();
-
-    let maps_updater = tokio::spawn(maps::run());
 
     select! {
         result = rocket.launch() => {

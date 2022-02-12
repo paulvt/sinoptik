@@ -7,7 +7,7 @@ use chrono::DurationRound;
 use image::DynamicImage;
 use rocket::tokio::time::{sleep, Duration, Instant};
 
-use crate::MAPS;
+use crate::MapsHandle;
 
 /// The interval between map refreshes (in seconds).
 const SLEEP_INTERVAL: Duration = Duration::from_secs(60);
@@ -37,14 +37,14 @@ const UVI_BASE_URL: &str = "https://image.buienradar.nl/2.0/image/sprite/Weather
 const UVI_INTERVAL: Duration = Duration::from_secs(3600);
 
 /// Runs a loop that keeps refreshing the maps when necessary.
-pub(crate) async fn run() -> ! {
+pub(crate) async fn run(maps_handle: MapsHandle) -> ! {
     loop {
-        let mut maps = MAPS.lock().await;
-
         println!("🕔 Refreshing the maps (if necessary)...");
-        maps.refresh_precipitation().await;
-        maps.refresh_pollen().await;
-        maps.refresh_uvi().await;
+
+        // FIXME: Refactor this so that the lock is only held when updating the maps fields.
+        maps_handle.lock().await.refresh_precipitation().await;
+        maps_handle.lock().await.refresh_pollen().await;
+        maps_handle.lock().await.refresh_uvi().await;
 
         sleep(SLEEP_INTERVAL).await;
     }
