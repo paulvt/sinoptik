@@ -83,9 +83,10 @@ impl Forecast {
 ///
 /// This is used for selecting which metrics should be calculated & returned.
 #[allow(clippy::upper_case_acronyms)]
-#[derive(Debug, Eq, PartialEq, FromFormField)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, FromFormField)]
 enum Metric {
     /// All metrics.
+    #[field(value = "all")]
     All,
     /// The air quality index.
     AQI,
@@ -105,25 +106,33 @@ enum Metric {
     UVI,
 }
 
+impl Metric {
+    /// Returns all supported metrics.
+    fn all() -> Vec<Metric> {
+        use Metric::*;
+
+        Vec::from([AQI, NO2, O3, PAQI, PM10, Pollen, Precipitation, UVI])
+    }
+}
+
 /// Calculates and returns the forecast.
 ///
 /// The provided list `metrics` determines what will be included in the forecast.
 async fn forecast(lat: f64, lon: f64, metrics: Vec<Metric>) -> Forecast {
     let mut forecast = Forecast::new(lat, lon);
 
+    // Expand the `All` metric if present, deduplicate otherwise.
+    let mut metrics = metrics;
+    if metrics.contains(&Metric::All) {
+        metrics = Metric::all();
+    } else {
+        metrics.dedup()
+    }
+
     for metric in metrics {
         match metric {
-            // TODO: Find a way to handle the "All" case more gracefully!
-            Metric::All => {
-                forecast.aqi = Some(1);
-                forecast.no2 = Some(2);
-                forecast.o3 = Some(3);
-                forecast.paqi = Some(4);
-                forecast.pm10 = Some(5);
-                forecast.pollen = Some(6);
-                forecast.precipitation = Some(7);
-                forecast.uvi = Some(8);
-            }
+            // This should have been expanded to all the metrics matched below.
+            Metric::All => unreachable!("should have been expanded"),
             Metric::AQI => forecast.aqi = Some(1),
             Metric::NO2 => forecast.no2 = Some(2),
             Metric::O3 => forecast.o3 = Some(3),
