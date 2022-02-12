@@ -14,6 +14,7 @@
 use geocoding::{Forward, Openstreetmap, Point};
 use rocket::serde::json::Json;
 use rocket::serde::Serialize;
+use rocket::tokio;
 use rocket::{get, launch, routes, FromFormField};
 
 /// The current for a specific location.
@@ -148,18 +149,22 @@ async fn forecast(lat: f64, lon: f64, metrics: Vec<Metric>) -> Forecast {
 }
 
 /// Retrieves the geocoded position for the given address.
-async fn address_position(address: &str) -> Option<(f64, f64)> {
-    let osm = Openstreetmap::new();
-    // FIXME: Handle or log the error.
-    let points: Vec<Point<f64>> = osm.forward(address).ok()?;
+async fn address_position(address: String) -> Option<(f64, f64)> {
+    tokio::task::spawn_blocking(move || {
+        let osm = Openstreetmap::new();
+        let points: Vec<Point<f64>> = osm.forward(&address).ok()?;
 
-    points.get(0).map(|point| (point.x(), point.y()))
+        points.get(0).map(|point| (point.x(), point.y()))
+    })
+    .await
+    .ok()
+    .flatten()
 }
 
 /// Handler for retrieving the forecast for an address.
 #[get("/forecast?<address>&<metrics>")]
 async fn forecast_address(address: String, metrics: Vec<Metric>) -> Option<Json<Forecast>> {
-    let (lat, lon) = address_position(&address).await?;
+    let (lat, lon) = address_position(address).await?;
     let forecast = forecast(lat, lon, metrics).await;
 
     Some(Json(forecast))
