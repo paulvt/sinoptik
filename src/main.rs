@@ -26,32 +26,44 @@ use rocket::{get, launch, routes, FromFormField};
 struct Forecast {
     /// The latitude of the position.
     lat: f64,
+
     /// The longitude of the position.
     lon: f64,
+
     /// The current time (in seconds since the UNIX epoch).
     time: i64,
-    /// The air quality index (if asked for).
-    #[serde(rename = "AQI")]
-    aqi: Option<()>,
-    /// The NO₂ concentration (if asked for).
-    #[serde(rename = "NO2")]
-    no2: Option<()>,
-    #[serde(rename = "O3")]
-    /// The O₃ concentration (if asked for).
-    o3: Option<()>,
-    #[serde(rename = "PAQI")]
-    /// The FIXME air quality index (if asked for).
-    paqi: Option<()>,
-    #[serde(rename = "PM10")]
-    /// The particulate matter in the air (if asked for).
-    pm10: Option<()>,
-    /// The pollen in the air (if asked for).
-    pollen: Option<()>,
-    /// The precipitation (if asked for).
-    precipitation: Option<()>,
-    /// The UV index (if asked for).
-    #[serde(rename = "UVI")]
-    uvi: Option<()>,
+
+    /// The air quality index (when asked for).
+    #[serde(rename = "AQI", skip_serializing_if = "Option::is_none")]
+    aqi: Option<u8>,
+
+    /// The NO₂ concentration (when asked for).
+    #[serde(rename = "NO2", skip_serializing_if = "Option::is_none")]
+    no2: Option<u8>,
+
+    /// The O₃ concentration (when asked for).
+    #[serde(rename = "O3", skip_serializing_if = "Option::is_none")]
+    o3: Option<u8>,
+
+    /// The FIXME air quality index (when asked for).
+    #[serde(rename = "PAQI", skip_serializing_if = "Option::is_none")]
+    paqi: Option<u8>,
+
+    /// The particulate matter in the air (when asked for).
+    #[serde(rename = "PM10", skip_serializing_if = "Option::is_none")]
+    pm10: Option<u8>,
+
+    /// The pollen in the air (when asked for).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pollen: Option<u8>,
+
+    /// The precipitation (when asked for).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    precipitation: Option<u8>,
+
+    /// The UV index (when asked for).
+    #[serde(rename = "UVI", skip_serializing_if = "Option::is_none")]
+    uvi: Option<u8>,
 }
 
 impl Forecast {
@@ -103,23 +115,23 @@ async fn forecast(lat: f64, lon: f64, metrics: Vec<Metric>) -> Forecast {
         match metric {
             // TODO: Find a way to handle the "All" case more gracefully!
             Metric::All => {
-                forecast.aqi = Some(());
-                forecast.no2 = Some(());
-                forecast.o3 = Some(());
-                forecast.paqi = Some(());
-                forecast.pm10 = Some(());
-                forecast.pollen = Some(());
-                forecast.precipitation = Some(());
-                forecast.uvi = Some(());
+                forecast.aqi = Some(1);
+                forecast.no2 = Some(2);
+                forecast.o3 = Some(3);
+                forecast.paqi = Some(4);
+                forecast.pm10 = Some(5);
+                forecast.pollen = Some(6);
+                forecast.precipitation = Some(7);
+                forecast.uvi = Some(8);
             }
-            Metric::AQI => forecast.aqi = Some(()),
-            Metric::NO2 => forecast.no2 = Some(()),
-            Metric::O3 => forecast.o3 = Some(()),
-            Metric::PAQI => forecast.paqi = Some(()),
-            Metric::PM10 => forecast.pm10 = Some(()),
-            Metric::Pollen => forecast.pollen = Some(()),
-            Metric::Precipitation => forecast.precipitation = Some(()),
-            Metric::UVI => forecast.uvi = Some(()),
+            Metric::AQI => forecast.aqi = Some(1),
+            Metric::NO2 => forecast.no2 = Some(2),
+            Metric::O3 => forecast.o3 = Some(3),
+            Metric::PAQI => forecast.paqi = Some(4),
+            Metric::PM10 => forecast.pm10 = Some(5),
+            Metric::Pollen => forecast.pollen = Some(6),
+            Metric::Precipitation => forecast.precipitation = Some(7),
+            Metric::UVI => forecast.uvi = Some(8),
         }
     }
 
