@@ -1599,6 +1599,7 @@ dependencies = [
  "chrono",
  "color-eyre",
  "geocoding",
+ "once_cell",
  "rocket",
 ]
 

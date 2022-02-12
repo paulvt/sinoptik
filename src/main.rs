@@ -13,14 +13,18 @@
 
 use color_eyre::Result;
 use geocoding::{Forward, Openstreetmap, Point};
+use once_cell::sync::Lazy;
 use rocket::serde::json::Json;
 use rocket::serde::Serialize;
+use rocket::tokio::sync::Mutex;
 use rocket::tokio::{self, select};
 use rocket::{get, routes, FromFormField};
 
 use self::maps::Maps;
 
 mod maps;
+
+static MAPS: Lazy<Mutex<Maps>> = Lazy::new(|| Mutex::new(Maps::default()));
 
 /// The current for a specific location.
 ///
