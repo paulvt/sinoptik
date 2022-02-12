@@ -45,7 +45,7 @@ struct Forecast {
     #[serde(rename = "O3", skip_serializing_if = "Option::is_none")]
     o3: Option<u8>,
 
-    /// The FIXME air quality index (when asked for).
+    /// The combination of pollen + air quality index (when asked for).
     #[serde(rename = "PAQI", skip_serializing_if = "Option::is_none")]
     paqi: Option<u8>,
 
@@ -94,7 +94,7 @@ enum Metric {
     NO2,
     /// The O₃ concentration.
     O3,
-    /// The FIXME air quality index.
+    /// The combination of pollen + air quality index.
     PAQI,
     /// The particulate matter in the air.
     PM10,
