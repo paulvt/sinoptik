@@ -11,11 +11,16 @@
 )]
 #![deny(missing_docs)]
 
+use color_eyre::Result;
 use geocoding::{Forward, Openstreetmap, Point};
 use rocket::serde::json::Json;
 use rocket::serde::Serialize;
-use rocket::tokio;
-use rocket::{get, launch, routes, FromFormField};
+use rocket::tokio::{self, select};
+use rocket::{get, routes, FromFormField};
+
+use self::maps::Maps;
+
+mod maps;
 
 /// The current for a specific location.
 ///
@@ -178,8 +183,28 @@ async fn forecast_geo(lat: f64, lon: f64, metrics: Vec<Metric>) -> Json<Forecast
     Json(forecast)
 }
 
-/// Launches rocket.
-#[launch]
-async fn rocket() -> _ {
-    rocket::build().mount("/", routes![forecast_address, forecast_geo])
+/// Starts the main maps refresh loop and sets up and launches Rocket.
+#[rocket::main]
+async fn main() -> Result<()> {
+    color_eyre::install()?;
+
+    let rocket = rocket::build()
+        .mount("/", routes![forecast_address, forecast_geo])
+        .ignite()
+        .await?;
+    let shutdown = rocket.shutdown();
+
+    let maps_updater = tokio::spawn(Maps::run());
+
+    select! {
+        result = rocket.launch() => {
+            result?
+        }
+        result = maps_updater => {
+            shutdown.notify();
+            result?
+        }
+    }
+
+    Ok(())
 }
