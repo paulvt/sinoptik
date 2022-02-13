@@ -3,23 +3,19 @@
 //! This module provides a task that keeps maps up-to-date using a maps-specific refresh interval.
 //! It stores all the maps as [`DynamicImage`]s in memory.
 
+use std::sync::{Arc, Mutex};
+
 use chrono::DurationRound;
 use image::DynamicImage;
 use rocket::tokio::time::{sleep, Duration, Instant};
 
-use crate::MapsHandle;
+/// A handle to access the in-memory cached maps.
+pub(crate) type MapsHandle = Arc<Mutex<Maps>>;
 
 /// The interval between map refreshes (in seconds).
-const SLEEP_INTERVAL: Duration = Duration::from_secs(60);
+const REFRESH_INTERVAL: Duration = Duration::from_secs(60);
 
-/// The base URL for retrieving the precipitation map.
-const PRECIPITATION_BASE_URL: &str =
-    "https://cluster.api.meteoplaza.com/v3/nowcast/tiles/radarnl-forecast";
-
-/// The interval for retrieving precipitation maps.
-const PRECIPITATION_INTERVAL: Duration = Duration::from_secs(300);
-
-/// The base URL for retrieving the pollen maps.
+/// The base URL for retrieving the pollen maps from Buienradar.
 const POLLEN_BASE_URL: &str =
     "https://image.buienradar.nl/2.0/image/sprite/WeatherMapPollenRadarHourlyNL\
         ?height=988&width=820&extension=png&renderBackground=False&renderBranding=False\
@@ -28,7 +24,14 @@ const POLLEN_BASE_URL: &str =
 /// The interval for retrieving pollen maps.
 const POLLEN_INTERVAL: Duration = Duration::from_secs(600);
 
-/// The base URL for retrieving the UV index maps.
+/// The base URL for retrieving the precipitation map from Weerplaza.
+const PRECIPITATION_BASE_URL: &str =
+    "https://cluster.api.meteoplaza.com/v3/nowcast/tiles/radarnl-forecast";
+
+/// The interval for retrieving precipitation maps.
+const PRECIPITATION_INTERVAL: Duration = Duration::from_secs(300);
+
+/// The base URL for retrieving the UV index maps from Buienradar.
 const UVI_BASE_URL: &str = "https://image.buienradar.nl/2.0/image/sprite/WeatherMapUVIndexNL\
         ?extension=png&width=820&height=988&renderText=False&renderBranding=False\
         &renderBackground=False&history=0&forecast=5&skip=0&timestamp=";
@@ -36,18 +39,28 @@ const UVI_BASE_URL: &str = "https://image.buienradar.nl/2.0/image/sprite/Weather
 /// The interval for retrieving UV index maps.
 const UVI_INTERVAL: Duration = Duration::from_secs(3600);
 
-/// Runs a loop that keeps refreshing the maps when necessary.
-pub(crate) async fn run(maps_handle: MapsHandle) -> ! {
-    loop {
-        println!("🕔 Refreshing the maps (if necessary)...");
+/// The `MapsRefresh` trait is used to reduce the time a lock needs to be held when updating maps.
+///
+/// When refreshing maps, the lock only needs to be held when checking whether a refresh is
+/// necessary and when the new maps have been retrieved and can be updated.
+trait MapsRefresh {
+    /// Determines whether the pollen maps need to be refresh.
+    fn needs_pollen_refresh(&self) -> bool;
 
-        // FIXME: Refactor this so that the lock is only held when updating the maps fields.
-        maps_handle.lock().await.refresh_precipitation().await;
-        maps_handle.lock().await.refresh_pollen().await;
-        maps_handle.lock().await.refresh_uvi().await;
+    /// Determines whether the precipitation maps need to be refresh.
+    fn needs_precipitation_refresh(&self) -> bool;
 
-        sleep(SLEEP_INTERVAL).await;
-    }
+    /// Determines whether the UV index maps need to be refresh.
+    fn needs_uvi_refresh(&self) -> bool;
+
+    /// Updates the pollen maps.
+    fn set_pollen(&self, pollen: Option<DynamicImage>);
+
+    /// Updates the precipitation maps.
+    fn set_precipitation(&self, precipitation: [Option<DynamicImage>; 24]);
+
+    /// Updates the UV index maps.
+    fn set_uvi(&self, uvi: Option<DynamicImage>);
 }
 
 /// Container type for all in-memory cached maps.
@@ -89,49 +102,41 @@ impl Maps {
             uvi_stamp: now,
         }
     }
+}
 
-    async fn refresh_precipitation(&mut self) {
-        if self.precipitation.iter().any(|map| map.is_none())
-            || Instant::now().duration_since(self.precipitation_stamp) > PRECIPITATION_INTERVAL
-        {
-            let just_before = (chrono::Utc::now() - chrono::Duration::minutes(10))
-                // This only fails if timestamps and durations exceed limits!
-                .duration_trunc(chrono::Duration::minutes(5))
-                .unwrap();
-            let timestamp = just_before.format("%Y%m%d%H%M");
-
-            for k in 0..24 {
-                let suffix = format!("{:03}", k * 5);
-                let url = format!("{PRECIPITATION_BASE_URL}/{timestamp}_{suffix}");
-                println!("🔽 Refreshing precipitation maps from: {}", url);
-                self.precipitation[k] = retrieve_image(&url).await;
-            }
-            self.precipitation_stamp = Instant::now();
-        }
+impl MapsRefresh for MapsHandle {
+    fn needs_pollen_refresh(&self) -> bool {
+        let maps = self.lock().expect("Maps mutex was poisoned");
+        maps.pollen.is_none() || Instant::now().duration_since(maps.pollen_stamp) > POLLEN_INTERVAL
     }
 
-    async fn refresh_pollen(&mut self) {
-        if self.pollen.is_none()
-            || Instant::now().duration_since(self.pollen_stamp) > POLLEN_INTERVAL
-        {
-            let timestamp = chrono::Local::now().format("%y%m%d%H%M");
-            let url = format!("{POLLEN_BASE_URL}{timestamp}");
-
-            println!("🔽 Refreshing pollen maps from: {}", url);
-            self.pollen = retrieve_image(&url).await;
-            self.pollen_stamp = Instant::now();
-        }
+    fn needs_precipitation_refresh(&self) -> bool {
+        let maps = self.lock().expect("Maps mutex was poisoned");
+        maps.precipitation.iter().any(|map| map.is_none())
+            || Instant::now().duration_since(maps.precipitation_stamp) > PRECIPITATION_INTERVAL
     }
 
-    async fn refresh_uvi(&mut self) {
-        if self.uvi.is_none() || Instant::now().duration_since(self.uvi_stamp) > UVI_INTERVAL {
-            let timestamp = chrono::Local::now().format("%y%m%d%H%M");
-            let url = format!("{UVI_BASE_URL}{timestamp}");
+    fn needs_uvi_refresh(&self) -> bool {
+        let maps = self.lock().expect("Maps mutex was poisoned");
+        maps.uvi.is_none() || Instant::now().duration_since(maps.uvi_stamp) > UVI_INTERVAL
+    }
 
-            println!("🔽 Refreshing UV index maps from: {}", url);
-            self.uvi = retrieve_image(&url).await;
-            self.uvi_stamp = Instant::now();
-        }
+    fn set_pollen(&self, pollen: Option<DynamicImage>) {
+        let mut maps = self.lock().expect("Maps mutex was poisoned");
+        maps.pollen = pollen;
+        maps.pollen_stamp = Instant::now();
+    }
+
+    fn set_precipitation(&self, precipitation: [Option<DynamicImage>; 24]) {
+        let mut maps = self.lock().expect("Maps mutex was poisoned");
+        maps.precipitation = precipitation;
+        maps.precipitation_stamp = Instant::now();
+    }
+
+    fn set_uvi(&self, uvi: Option<DynamicImage>) {
+        let mut maps = self.lock().expect("Maps mutex was poisoned");
+        maps.uvi = uvi;
+        maps.uvi_stamp = Instant::now();
     }
 }
 
@@ -142,4 +147,73 @@ async fn retrieve_image(url: &str) -> Option<DynamicImage> {
     let bytes = response.bytes().await.ok()?;
 
     image::load_from_memory(&bytes).ok()
+}
+
+/// Retrieves the pollen maps from Buienradar.
+///
+/// See [`POLLEN_BASE_URL`] for the base URL and [`retrieve_image`] for the retrieval function.
+async fn retrieve_pollen_maps() -> Option<DynamicImage> {
+    let timestamp = chrono::Local::now().format("%y%m%d%H%M");
+    let url = format!("{POLLEN_BASE_URL}{timestamp}");
+
+    println!("🔽 Refreshing pollen maps from: {}", url);
+    retrieve_image(&url).await
+}
+
+/// Retrieves the pollen maps from Weerplaza.
+///
+/// See [`PRECIPITATION_BASE_URL`] for the base URL and [`retrieve_image`] for the retrieval
+/// function.
+async fn retrieve_precipitation_maps() -> [Option<DynamicImage>; 24] {
+    let just_before = (chrono::Utc::now() - chrono::Duration::minutes(10))
+        // This only fails if timestamps and durations exceed limits!
+        .duration_trunc(chrono::Duration::minutes(5))
+        .unwrap();
+    let timestamp = just_before.format("%Y%m%d%H%M");
+
+    let mut precipitation: [Option<DynamicImage>; 24] = Default::default();
+    for (index, map) in precipitation.iter_mut().enumerate() {
+        let suffix = format!("{:03}", index * 5);
+        let url = format!("{PRECIPITATION_BASE_URL}/{timestamp}_{suffix}");
+        println!("🔽 Refreshing precipitation map from: {}", url);
+        *map = retrieve_image(&url).await;
+    }
+
+    precipitation
+}
+
+/// Retrieves the UV index maps from Buienradar.
+///
+/// See [`UVI_BASE_URL`] for the base URL and [`retrieve_image`] for the retrieval function.
+async fn retrieve_uvi_maps() -> Option<DynamicImage> {
+    let timestamp = chrono::Local::now().format("%y%m%d%H%M");
+    let url = format!("{UVI_BASE_URL}{timestamp}");
+
+    println!("🔽 Refreshing UV index maps from: {}", url);
+    retrieve_image(&url).await
+}
+
+/// Runs a loop that keeps refreshing the maps when necessary.
+///
+/// Use [`MapsRefresh`] trait methods on `maps_handle` to check whether each maps type needs to be
+/// refreshed and uses its retrieval function to update it if necessary.
+pub(crate) async fn run(maps_handle: MapsHandle) -> ! {
+    loop {
+        println!("🕔 Refreshing the maps (if necessary)...");
+
+        if maps_handle.needs_pollen_refresh() {
+            let pollen = retrieve_pollen_maps().await;
+            maps_handle.set_pollen(pollen);
+        }
+        if maps_handle.needs_precipitation_refresh() {
+            let precipitation = retrieve_precipitation_maps().await;
+            maps_handle.set_precipitation(precipitation);
+        }
+        if maps_handle.needs_uvi_refresh() {
+            let uvi = retrieve_uvi_maps().await;
+            maps_handle.set_uvi(uvi);
+        }
+
+        sleep(REFRESH_INTERVAL).await;
+    }
 }

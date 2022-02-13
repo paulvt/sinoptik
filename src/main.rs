@@ -11,22 +11,18 @@
 )]
 #![deny(missing_docs)]
 
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 use color_eyre::Result;
 use geocoding::{Forward, Openstreetmap, Point};
 use rocket::serde::json::Json;
 use rocket::serde::Serialize;
-use rocket::tokio::sync::Mutex;
 use rocket::tokio::{self, select};
 use rocket::{get, routes, FromFormField, State};
 
-use self::maps::Maps;
+use self::maps::{Maps, MapsHandle};
 
 mod maps;
-
-/// A handle to access the in-memory cached maps.
-type MapsHandle = Arc<Mutex<Maps>>;
 
 /// The current for a specific location.
 ///
