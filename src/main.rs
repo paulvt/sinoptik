@@ -21,8 +21,10 @@ use rocket::tokio::{self, select};
 use rocket::{get, routes, FromFormField, State};
 
 use self::maps::{Maps, MapsHandle};
+use self::providers::luchtmeetnet::Item as LuchtmeetnetItem;
 
-mod maps;
+pub(crate) mod maps;
+pub(crate) mod providers;
 
 /// The current for a specific location.
 ///
