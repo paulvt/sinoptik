@@ -34,7 +34,7 @@ const PRECIPITATION_INTERVAL: Duration = Duration::from_secs(300);
 
 /// The base URL for retrieving the UV index maps from Buienradar.
 const UVI_BASE_URL: &str = "https://image.buienradar.nl/2.0/image/sprite/WeatherMapUVIndexNL\
-        ?width=820&height=988extension=png&&renderBackground=False&renderBranding=False\
+        ?width=820&height=988&extension=png&&renderBackground=False&renderBranding=False\
         &renderText=False&history=0&forecast=5&skip=0";
 
 /// The interval for retrieving UV index maps.
