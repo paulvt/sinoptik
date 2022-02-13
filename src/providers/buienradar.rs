@@ -1,23 +1,37 @@
 //! The Buienradar data provider.
 //!
 //! For more information about Buienradar, see: <https://www.buienradar.nl/overbuienradar/contact>
-//! and <https://www.buienradar.nl/overbuienradar/gratis-weerdata>
+//! and <https://www.buienradar.nl/overbuienradar/gratis-weerdata>.
 
 use chrono::offset::TimeZone;
 use chrono::serde::ts_seconds;
-use chrono::{DateTime, Local, NaiveDate, NaiveTime, Utc};
+use chrono::{DateTime, Local, NaiveTime, ParseError, Utc};
 use chrono_tz::Europe;
+use csv::ReaderBuilder;
 use reqwest::Url;
-use rocket::serde::Serialize;
+use rocket::serde::{Deserialize, Serialize};
 
 use crate::Metric;
 
 /// The base URL for the Buienradar API.
 const BUIENRADAR_BASE_URL: &str = "https://gpsgadget.buienradar.nl/data/raintext";
 
-/// The Buienradar API precipitation data item.
-#[derive(Debug, Serialize)]
+/// A row in the precipitation text output.
+///
+/// This is an intermediate type used to represent rows of the output.
+#[derive(Debug, Deserialize)]
 #[serde(crate = "rocket::serde")]
+struct Row {
+    /// The precipitation value in the range `0..=255`.
+    value: u16,
+
+    /// The time in the `HH:MM` format.
+    time: String,
+}
+
+/// The Buienradar API precipitation data item.
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(crate = "rocket::serde", try_from = "Row")]
 pub(crate) struct Item {
     /// The time(stamp) of the forecast.
     #[serde(serialize_with = "ts_seconds::serialize")]
@@ -25,54 +39,47 @@ pub(crate) struct Item {
 
     /// The forecasted value.
     ///
-    /// The unit is FIXME?
+    /// Its unit is mm/h.
     value: f32,
 }
 
-/// Parses a line of the Buienradar precipitation text interface into an item.
-///
-// Each line has the format: `val|HH:MM`, for example: `362|12:30`.
-fn parse_item(line: &str, today: &NaiveDate) -> Option<Item> {
-    line.split_once('|')
-        .map(|(v, t)| {
-            let time = parse_time(t, today)?;
-            let value = parse_value(v)?;
+impl TryFrom<Row> for Item {
+    type Error = ParseError;
 
-            Some(Item { time, value })
-        })
-        .flatten()
+    fn try_from(row: Row) -> Result<Self, Self::Error> {
+        let time = parse_time(&row.time)?;
+        let value = convert_value(row.value);
+
+        Ok(Item { time, value })
+    }
 }
 
 /// Parses a time string to date/time in the UTC time zone.
 ///
 /// The provided time has the format `HH:MM` and is considered to be in the Europe/Amsterdam
 /// time zone.
-///
-/// Returns [`None`] if the time cannot be parsed.
-fn parse_time(t: &str, today: &NaiveDate) -> Option<DateTime<Utc>> {
-    // First, get the naive date/time.
-    let ntime = NaiveTime::parse_from_str(t, "%H:%M").ok()?;
-    let ndtime = today.and_time(ntime);
+fn parse_time(t: &str) -> Result<DateTime<Utc>, ParseError> {
+    // First, get the naive time.
+    let ntime = NaiveTime::parse_from_str(t, "%H:%M")?;
+    // FIXME: This might actually be the day before when started on a machine that
+    //   doesn't run in the Europe/Amsterdam time zone.
+    let ndtime = Local::today().naive_local().and_time(ntime);
     // Then, interpret the naive date/time in the Europe/Amsterdam time zone and convert it to the
     // UTC time zone.
     let ldtime = Europe::Amsterdam.from_local_datetime(&ndtime).unwrap();
     let dtime = ldtime.with_timezone(&Utc);
 
-    Some(dtime)
+    Ok(dtime)
 }
 
-/// Parses a precipitation value into an intensity value in mm/h.
+/// Converts a precipitation value into an precipitation intensity value in mm/h.
 ///
 /// For the conversion formula, see: <https://www.buienradar.nl/overbuienradar/gratis-weerdata>.
-///
-/// Returns [`None`] if the value cannot be parsed.
-fn parse_value(v: &str) -> Option<f32> {
-    let value = v.parse::<f32>().ok()?;
+fn convert_value(v: u16) -> f32 {
     let base: f32 = 10.0;
-    let value = base.powf((value - 109.0) / 32.0);
-    let value = (value * 10.0).round() / 10.0;
+    let value = base.powf((v as f32 - 109.0) / 32.0);
 
-    Some(value)
+    (value * 10.0).round() / 10.0
 }
 
 /// Retrieves the Buienradar forecasted precipitation items for the provided position.
@@ -97,10 +104,10 @@ pub(crate) async fn get(lat: f64, lon: f64, metric: Metric) -> Option<Vec<Item>>
         Ok(res) => res.text().await.ok()?,
         Err(_err) => return None,
     };
-    let today = Local::today().naive_utc();
 
-    output
-        .lines()
-        .map(|line| parse_item(line, &today))
-        .collect()
+    let mut rdr = ReaderBuilder::new()
+        .has_headers(false)
+        .delimiter(b'|')
+        .from_reader(output.as_bytes());
+    rdr.deserialize().collect::<Result<_, _>>().ok()
 }
