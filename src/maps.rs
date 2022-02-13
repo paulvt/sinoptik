@@ -107,35 +107,35 @@ impl Maps {
 
 impl MapsRefresh for MapsHandle {
     fn needs_pollen_refresh(&self) -> bool {
-        let maps = self.lock().expect("Maps mutex was poisoned");
+        let maps = self.lock().expect("Maps handle mutex was poisoned");
         maps.pollen.is_none() || Instant::now().duration_since(maps.pollen_stamp) > POLLEN_INTERVAL
     }
 
     fn needs_precipitation_refresh(&self) -> bool {
-        let maps = self.lock().expect("Maps mutex was poisoned");
+        let maps = self.lock().expect("Maps handle mutex was poisoned");
         maps.precipitation.iter().any(|map| map.is_none())
             || Instant::now().duration_since(maps.precipitation_stamp) > PRECIPITATION_INTERVAL
     }
 
     fn needs_uvi_refresh(&self) -> bool {
-        let maps = self.lock().expect("Maps mutex was poisoned");
+        let maps = self.lock().expect("Maps handle mutex was poisoned");
         maps.uvi.is_none() || Instant::now().duration_since(maps.uvi_stamp) > UVI_INTERVAL
     }
 
     fn set_pollen(&self, pollen: Option<DynamicImage>) {
-        let mut maps = self.lock().expect("Maps mutex was poisoned");
+        let mut maps = self.lock().expect("Maps handle mutex was poisoned");
         maps.pollen = pollen;
         maps.pollen_stamp = Instant::now();
     }
 
     fn set_precipitation(&self, precipitation: [Option<DynamicImage>; 24]) {
-        let mut maps = self.lock().expect("Maps mutex was poisoned");
+        let mut maps = self.lock().expect("Maps handle mutex was poisoned");
         maps.precipitation = precipitation;
         maps.precipitation_stamp = Instant::now();
     }
 
     fn set_uvi(&self, uvi: Option<DynamicImage>) {
-        let mut maps = self.lock().expect("Maps mutex was poisoned");
+        let mut maps = self.lock().expect("Maps handle mutex was poisoned");
         maps.uvi = uvi;
         maps.uvi_stamp = Instant::now();
     }
