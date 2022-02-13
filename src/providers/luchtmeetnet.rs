@@ -4,6 +4,7 @@
 
 use chrono::serde::ts_seconds;
 use chrono::{DateTime, Utc};
+use reqwest::Url;
 use rocket::serde::{Deserialize, Serialize};
 
 use crate::Metric;
@@ -48,13 +49,14 @@ pub(crate) async fn get(lat: f64, lon: f64, metric: Metric) -> Option<Vec<Item>>
         Metric::PM10 => "pm10",
         _ => return None, // Unsupported metric
     };
-    let url = format!(
-        "{LUCHTMEETNET_BASE_URL}?formula={formula}&latitude={:.05}&longitude={:.05}",
-        lat, lon
-    );
+    let mut url = Url::parse(LUCHTMEETNET_BASE_URL).unwrap();
+    url.query_pairs_mut()
+        .append_pair("formula", formula)
+        .append_pair("latitude", &format!("{:.05}", lat))
+        .append_pair("longitude", &format!("{:.05}", lon));
 
     println!("▶️  Retrieving Luchtmeetnet data from {url}");
-    let response = reqwest::get(&url).await.ok()?;
+    let response = reqwest::get(url).await.ok()?;
     let root: Container = match response.error_for_status() {
         Ok(res) => res.json().await.ok()?,
         Err(_err) => return None,

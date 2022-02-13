@@ -7,6 +7,7 @@ use std::sync::{Arc, Mutex};
 
 use chrono::DurationRound;
 use image::DynamicImage;
+use reqwest::Url;
 use rocket::tokio::time::{sleep, Duration, Instant};
 
 /// A handle to access the in-memory cached maps.
@@ -18,8 +19,8 @@ const REFRESH_INTERVAL: Duration = Duration::from_secs(60);
 /// The base URL for retrieving the pollen maps from Buienradar.
 const POLLEN_BASE_URL: &str =
     "https://image.buienradar.nl/2.0/image/sprite/WeatherMapPollenRadarHourlyNL\
-        ?height=988&width=820&extension=png&renderBackground=False&renderBranding=False\
-        &renderText=False&history=0&forecast=24&skip=0&timestamp=";
+        ?width=820&height=988&extension=png&renderBackground=False&renderBranding=False\
+        &renderText=False&history=0&forecast=24&skip=0";
 
 /// The interval for retrieving pollen maps.
 const POLLEN_INTERVAL: Duration = Duration::from_secs(600);
@@ -33,8 +34,8 @@ const PRECIPITATION_INTERVAL: Duration = Duration::from_secs(300);
 
 /// The base URL for retrieving the UV index maps from Buienradar.
 const UVI_BASE_URL: &str = "https://image.buienradar.nl/2.0/image/sprite/WeatherMapUVIndexNL\
-        ?extension=png&width=820&height=988&renderText=False&renderBranding=False\
-        &renderBackground=False&history=0&forecast=5&skip=0&timestamp=";
+        ?width=820&height=988extension=png&&renderBackground=False&renderBranding=False\
+        &renderText=False&history=0&forecast=5&skip=0";
 
 /// The interval for retrieving UV index maps.
 const UVI_INTERVAL: Duration = Duration::from_secs(3600);
@@ -144,7 +145,7 @@ impl MapsRefresh for MapsHandle {
 ///
 /// This returns [`None`] if it fails in either performing the request, retrieving the bytes from
 /// the image or loading and the decoding the data into [`DynamicImage`].
-async fn retrieve_image(url: &str) -> Option<DynamicImage> {
+async fn retrieve_image(url: Url) -> Option<DynamicImage> {
     // TODO: Handle or log errors!
     let response = reqwest::get(url).await.ok()?;
     let bytes = response.bytes().await.ok()?;
@@ -156,11 +157,12 @@ async fn retrieve_image(url: &str) -> Option<DynamicImage> {
 ///
 /// See [`POLLEN_BASE_URL`] for the base URL and [`retrieve_image`] for the retrieval function.
 async fn retrieve_pollen_maps() -> Option<DynamicImage> {
-    let timestamp = chrono::Local::now().format("%y%m%d%H%M");
-    let url = format!("{POLLEN_BASE_URL}{timestamp}");
+    let timestamp = format!("{}", chrono::Local::now().format("%y%m%d%H%M"));
+    let mut url = Url::parse(POLLEN_BASE_URL).unwrap();
+    url.query_pairs_mut().append_pair("timestamp", &timestamp);
 
     println!("🔽 Refreshing pollen maps from: {}", url);
-    retrieve_image(&url).await
+    retrieve_image(url).await
 }
 
 /// Retrieves the pollen maps from Weerplaza.
@@ -172,14 +174,17 @@ async fn retrieve_precipitation_maps() -> [Option<DynamicImage>; 24] {
         // This only fails if timestamps and durations exceed limits!
         .duration_trunc(chrono::Duration::minutes(5))
         .unwrap();
-    let timestamp = just_before.format("%Y%m%d%H%M");
+    let timestamp_prefix = just_before.format("%Y%m%d%H%M");
+    let base_url = Url::parse(PRECIPITATION_BASE_URL).unwrap();
 
     let mut precipitation: [Option<DynamicImage>; 24] = Default::default();
     for (index, map) in precipitation.iter_mut().enumerate() {
-        let suffix = format!("{:03}", index * 5);
-        let url = format!("{PRECIPITATION_BASE_URL}/{timestamp}_{suffix}");
+        let timestamp = format!("{timestamp_prefix}_{:03}", index * 5);
+        let mut url = base_url.clone();
+        url.path_segments_mut().unwrap().push(&timestamp);
+
         println!("🔽 Refreshing precipitation map from: {}", url);
-        *map = retrieve_image(&url).await;
+        *map = retrieve_image(url).await;
     }
 
     precipitation
@@ -189,11 +194,12 @@ async fn retrieve_precipitation_maps() -> [Option<DynamicImage>; 24] {
 ///
 /// See [`UVI_BASE_URL`] for the base URL and [`retrieve_image`] for the retrieval function.
 async fn retrieve_uvi_maps() -> Option<DynamicImage> {
-    let timestamp = chrono::Local::now().format("%y%m%d%H%M");
-    let url = format!("{UVI_BASE_URL}{timestamp}");
+    let timestamp = format!("{}", chrono::Local::now().format("%y%m%d%H%M"));
+    let mut url = Url::parse(UVI_BASE_URL).unwrap();
+    url.query_pairs_mut().append_pair("timestamp", &timestamp);
 
     println!("🔽 Refreshing UV index maps from: {}", url);
-    retrieve_image(&url).await
+    retrieve_image(url).await
 }
 
 /// Runs a loop that keeps refreshing the maps when necessary.
