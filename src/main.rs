@@ -200,6 +200,8 @@ async fn forecast_geo(
 }
 
 /// Starts the main maps refresh loop and sets up and launches Rocket.
+///
+/// See [`maps::run`] for the maps refresh loop.
 #[rocket::main]
 async fn main() -> Result<()> {
     color_eyre::install()?;

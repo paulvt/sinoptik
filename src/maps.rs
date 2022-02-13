@@ -141,6 +141,9 @@ impl MapsRefresh for MapsHandle {
 }
 
 /// Retrieves an image from the provided URL.
+///
+/// This returns [`None`] if it fails in either performing the request, retrieving the bytes from
+/// the image or loading and the decoding the data into [`DynamicImage`].
 async fn retrieve_image(url: &str) -> Option<DynamicImage> {
     // TODO: Handle or log errors!
     let response = reqwest::get(url).await.ok()?;
