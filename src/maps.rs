@@ -3,6 +3,8 @@
 //! This module provides a task that keeps maps up-to-date using a maps-specific refresh interval.
 //! It stores all the maps as [`DynamicImage`]s in memory.
 
+// TODO: Allow dead code until either precipitation maps get used or dumped.
+#![allow(dead_code)]
 use std::sync::{Arc, Mutex};
 
 use chrono::DurationRound;
@@ -214,10 +216,11 @@ pub(crate) async fn run(maps_handle: MapsHandle) -> ! {
             let pollen = retrieve_pollen_maps().await;
             maps_handle.set_pollen(pollen);
         }
-        if maps_handle.needs_precipitation_refresh() {
-            let precipitation = retrieve_precipitation_maps().await;
-            maps_handle.set_precipitation(precipitation);
-        }
+        // Disable for now, they are not used.
+        // if maps_handle.needs_precipitation_refresh() {
+        //     let precipitation = retrieve_precipitation_maps().await;
+        //     maps_handle.set_precipitation(precipitation);
+        // }
         if maps_handle.needs_uvi_refresh() {
             let uvi = retrieve_uvi_maps().await;
             maps_handle.set_uvi(uvi);
