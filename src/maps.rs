@@ -25,13 +25,17 @@ const POLLEN_BASE_URL: &str =
         &renderText=False&history=0&forecast=24&skip=0";
 
 /// The interval for retrieving pollen maps.
-const POLLEN_INTERVAL: Duration = Duration::from_secs(600);
+///
+/// The endpoint provides a map for every hour, 24 in total.
+const POLLEN_INTERVAL: Duration = Duration::from_secs(3_600);
 
 /// The base URL for retrieving the precipitation map from Weerplaza.
 const PRECIPITATION_BASE_URL: &str =
     "https://cluster.api.meteoplaza.com/v3/nowcast/tiles/radarnl-forecast";
 
 /// The interval for retrieving precipitation maps.
+///
+/// The series contains images for every 5 minutes, 24 in total.
 const PRECIPITATION_INTERVAL: Duration = Duration::from_secs(300);
 
 /// The base URL for retrieving the UV index maps from Buienradar.
@@ -40,7 +44,9 @@ const UVI_BASE_URL: &str = "https://image.buienradar.nl/2.0/image/sprite/Weather
         &renderText=False&history=0&forecast=5&skip=0";
 
 /// The interval for retrieving UV index maps.
-const UVI_INTERVAL: Duration = Duration::from_secs(3600);
+///
+/// The endpoint provides a map for every day, 5 in total.
+const UVI_INTERVAL: Duration = Duration::from_secs(24 * 3600);
 
 /// The `MapsRefresh` trait is used to reduce the time a lock needs to be held when updating maps.
 ///
