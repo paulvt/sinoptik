@@ -25,12 +25,13 @@ struct Container {
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(crate = "rocket::serde")]
 pub(crate) struct Item {
-    /// The time for when the value is forecast.
+    /// The time(stamp) of the forecast.
     #[serde(
         rename(deserialize = "timestamp_measured"),
         serialize_with = "ts_seconds::serialize"
     )]
     time: DateTime<Utc>,
+
     /// The forecasted value.
     ///
     /// The unit depends on the selected [metric](Metric).
@@ -38,6 +39,12 @@ pub(crate) struct Item {
 }
 
 /// Retrieves the Luchtmeetnet forecasted items for the provided position and metric.
+///
+/// It supports the following metrics:
+/// * [`Metric::AQI`]
+/// * [`Metric::NO2`]
+/// * [`Metric::O3`]
+/// * [`Metric::PM10`]
 ///
 /// Returns [`None`] if retrieval or deserialization fails, or if the metric is not supported by
 /// this provider.

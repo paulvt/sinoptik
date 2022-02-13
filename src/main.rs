@@ -21,6 +21,7 @@ use rocket::tokio::{self, select};
 use rocket::{get, routes, FromFormField, State};
 
 use self::maps::{Maps, MapsHandle};
+use self::providers::buienradar::Item as BuienradarItem;
 use self::providers::luchtmeetnet::Item as LuchtmeetnetItem;
 
 pub(crate) mod maps;
@@ -69,7 +70,7 @@ struct Forecast {
 
     /// The precipitation (when asked for).
     #[serde(skip_serializing_if = "Option::is_none")]
-    precipitation: Option<()>,
+    precipitation: Option<Vec<BuienradarItem>>,
 
     /// The UV index (when asked for).
     #[serde(rename = "UVI", skip_serializing_if = "Option::is_none")]
@@ -154,7 +155,9 @@ async fn forecast(
             Metric::PAQI => forecast.paqi = Some(()),
             Metric::PM10 => forecast.pm10 = providers::luchtmeetnet::get(lat, lon, metric).await,
             Metric::Pollen => forecast.pollen = Some(()),
-            Metric::Precipitation => forecast.precipitation = Some(()),
+            Metric::Precipitation => {
+                forecast.precipitation = providers::buienradar::get(lat, lon, metric).await
+            }
             Metric::UVI => forecast.uvi = Some(()),
         }
     }
