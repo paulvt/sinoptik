@@ -46,7 +46,7 @@ const UVI_BASE_URL: &str = "https://image.buienradar.nl/2.0/image/sprite/Weather
 /// The interval for retrieving UV index maps.
 ///
 /// The endpoint provides a map for every day, 5 in total.
-const UVI_INTERVAL: Duration = Duration::from_secs(24 * 3600);
+const UVI_INTERVAL: Duration = Duration::from_secs(24 * 3_600);
 
 /// The `MapsRefresh` trait is used to reduce the time a lock needs to be held when updating maps.
 ///
