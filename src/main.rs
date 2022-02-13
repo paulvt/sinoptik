@@ -31,7 +31,7 @@ pub(crate) mod providers;
 /// Only the metrics asked for are included as well as the position and current time.
 ///
 /// TODO: Fill the metrics with actual data!
-#[derive(Debug, Default, PartialEq, Serialize)]
+#[derive(Debug, Default, Serialize)]
 #[serde(crate = "rocket::serde")]
 struct Forecast {
     /// The latitude of the position.
@@ -45,35 +45,35 @@ struct Forecast {
 
     /// The air quality index (when asked for).
     #[serde(rename = "AQI", skip_serializing_if = "Option::is_none")]
-    aqi: Option<u8>,
+    aqi: Option<Vec<LuchtmeetnetItem>>,
 
     /// The NO₂ concentration (when asked for).
     #[serde(rename = "NO2", skip_serializing_if = "Option::is_none")]
-    no2: Option<u8>,
+    no2: Option<Vec<LuchtmeetnetItem>>,
 
     /// The O₃ concentration (when asked for).
     #[serde(rename = "O3", skip_serializing_if = "Option::is_none")]
-    o3: Option<u8>,
+    o3: Option<Vec<LuchtmeetnetItem>>,
 
     /// The combination of pollen + air quality index (when asked for).
     #[serde(rename = "PAQI", skip_serializing_if = "Option::is_none")]
-    paqi: Option<u8>,
+    paqi: Option<()>,
 
     /// The particulate matter in the air (when asked for).
     #[serde(rename = "PM10", skip_serializing_if = "Option::is_none")]
-    pm10: Option<u8>,
+    pm10: Option<Vec<LuchtmeetnetItem>>,
 
     /// The pollen in the air (when asked for).
     #[serde(skip_serializing_if = "Option::is_none")]
-    pollen: Option<u8>,
+    pollen: Option<()>,
 
     /// The precipitation (when asked for).
     #[serde(skip_serializing_if = "Option::is_none")]
-    precipitation: Option<u8>,
+    precipitation: Option<()>,
 
     /// The UV index (when asked for).
     #[serde(rename = "UVI", skip_serializing_if = "Option::is_none")]
-    uvi: Option<u8>,
+    uvi: Option<()>,
 }
 
 impl Forecast {
@@ -147,15 +147,15 @@ async fn forecast(
     for metric in metrics {
         match metric {
             // This should have been expanded to all the metrics matched below.
-            Metric::All => unreachable!("should have been expanded"),
-            Metric::AQI => forecast.aqi = Some(1),
-            Metric::NO2 => forecast.no2 = Some(2),
-            Metric::O3 => forecast.o3 = Some(3),
-            Metric::PAQI => forecast.paqi = Some(4),
-            Metric::PM10 => forecast.pm10 = Some(5),
-            Metric::Pollen => forecast.pollen = Some(6),
-            Metric::Precipitation => forecast.precipitation = Some(7),
-            Metric::UVI => forecast.uvi = Some(8),
+            Metric::All => unreachable!("The all metric should have been expanded"),
+            Metric::AQI => forecast.aqi = providers::luchtmeetnet::get(lat, lon, metric).await,
+            Metric::NO2 => forecast.no2 = providers::luchtmeetnet::get(lat, lon, metric).await,
+            Metric::O3 => forecast.o3 = providers::luchtmeetnet::get(lat, lon, metric).await,
+            Metric::PAQI => forecast.paqi = Some(()),
+            Metric::PM10 => forecast.pm10 = providers::luchtmeetnet::get(lat, lon, metric).await,
+            Metric::Pollen => forecast.pollen = Some(()),
+            Metric::Precipitation => forecast.precipitation = Some(()),
+            Metric::UVI => forecast.uvi = Some(()),
         }
     }
 
