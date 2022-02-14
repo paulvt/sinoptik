@@ -166,12 +166,18 @@ async fn forecast(
 }
 
 /// Retrieves the geocoded position for the given address.
+///
+/// Returns [`Some`] with tuple of latitude and longitude. Returns [`None`] if the address could
+/// not be geocoded or the OpenStreetMap Nomatim API could not be contacted.
+#[cached(size = 100)]
 async fn address_position(address: String) -> Option<(f64, f64)> {
+    println!("🌍 Geocoding the position of the address: {}", address);
     tokio::task::spawn_blocking(move || {
         let osm = Openstreetmap::new();
         let points: Vec<Point<f64>> = osm.forward(&address).ok()?;
 
-        points.get(0).map(|point| (point.x(), point.y()))
+        // The `geocoding` API always returns (longitude, latitude) as (x, y).
+        points.get(0).map(|point| (point.y(), point.x()))
     })
     .await
     .ok()
