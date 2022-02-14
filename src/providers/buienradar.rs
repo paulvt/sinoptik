@@ -90,6 +90,9 @@ fn convert_value(v: u16) -> f32 {
 ///
 /// Returns [`None`] if retrieval or deserialization fails, or if the metric is not supported by
 /// this provider.
+///
+/// If the result is [`Some`] it will be cached for 5 minutes for the the given position and
+/// metric.
 #[cached(
     time = 300,
     convert = "{ cache_key(lat, lon, metric) }",

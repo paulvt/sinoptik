@@ -49,8 +49,11 @@ pub(crate) struct Item {
 ///
 /// Returns [`None`] if retrieval or deserialization fails, or if the metric is not supported by
 /// this provider.
+///
+/// If the result is [`Some`] it will be cached for 30 minutes for the the given position and
+/// metric.
 #[cached(
-    time = 300,
+    time = 1800,
     convert = "{ cache_key(lat, lon, metric) }",
     key = "(i32, i32, Metric)",
     option = true

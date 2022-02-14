@@ -181,6 +181,9 @@ async fn forecast(
 ///
 /// Returns [`Some`] with tuple of latitude and longitude. Returns [`None`] if the address could
 /// not be geocoded or the OpenStreetMap Nomatim API could not be contacted.
+///
+/// If the result is [`Some`] it will be cached. Only the 100 least-recently used address
+/// will be cached.
 #[cached(size = 100)]
 async fn address_position(address: String) -> Option<(f64, f64)> {
     println!("🌍 Geocoding the position of the address: {}", address);
