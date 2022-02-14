@@ -2,12 +2,13 @@
 //!
 //! For more information about Luchtmeetnet, see: <https://www.luchtmeetnet.nl/contact>.
 
+use cached::proc_macro::cached;
 use chrono::serde::ts_seconds;
 use chrono::{DateTime, Utc};
 use reqwest::Url;
 use rocket::serde::{Deserialize, Serialize};
 
-use crate::Metric;
+use crate::{cache_key, Metric};
 
 /// The base URL for the Luchtmeetnet API.
 const LUCHTMEETNET_BASE_URL: &str = "https://api.luchtmeetnet.nl/open_api/concentrations";
@@ -22,7 +23,7 @@ struct Container {
 }
 
 /// The Luchtmeetnet API data item.
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(crate = "rocket::serde")]
 pub(crate) struct Item {
     /// The time(stamp) of the forecast.
@@ -48,6 +49,12 @@ pub(crate) struct Item {
 ///
 /// Returns [`None`] if retrieval or deserialization fails, or if the metric is not supported by
 /// this provider.
+#[cached(
+    time = 300,
+    convert = "{ cache_key(lat, lon, metric) }",
+    key = "(i32, i32, Metric)",
+    option = true
+)]
 pub(crate) async fn get(lat: f64, lon: f64, metric: Metric) -> Option<Vec<Item>> {
     let formula = match metric {
         Metric::AQI => "lki",

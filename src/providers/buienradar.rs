@@ -3,6 +3,7 @@
 //! For more information about Buienradar, see: <https://www.buienradar.nl/overbuienradar/contact>
 //! and <https://www.buienradar.nl/overbuienradar/gratis-weerdata>.
 
+use cached::proc_macro::cached;
 use chrono::offset::TimeZone;
 use chrono::serde::ts_seconds;
 use chrono::{DateTime, Local, NaiveTime, ParseError, Utc};
@@ -11,7 +12,7 @@ use csv::ReaderBuilder;
 use reqwest::Url;
 use rocket::serde::{Deserialize, Serialize};
 
-use crate::Metric;
+use crate::{cache_key, Metric};
 
 /// The base URL for the Buienradar API.
 const BUIENRADAR_BASE_URL: &str = "https://gpsgadget.buienradar.nl/data/raintext";
@@ -30,7 +31,7 @@ struct Row {
 }
 
 /// The Buienradar API precipitation data item.
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(crate = "rocket::serde", try_from = "Row")]
 pub(crate) struct Item {
     /// The time(stamp) of the forecast.
@@ -89,6 +90,12 @@ fn convert_value(v: u16) -> f32 {
 ///
 /// Returns [`None`] if retrieval or deserialization fails, or if the metric is not supported by
 /// this provider.
+#[cached(
+    time = 300,
+    convert = "{ cache_key(lat, lon, metric) }",
+    key = "(i32, i32, Metric)",
+    option = true
+)]
 pub(crate) async fn get(lat: f64, lon: f64, metric: Metric) -> Option<Vec<Item>> {
     if metric != Metric::Precipitation {
         return None;

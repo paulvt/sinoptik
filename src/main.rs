@@ -13,6 +13,7 @@
 
 use std::sync::{Arc, Mutex};
 
+use cached::proc_macro::cached;
 use color_eyre::Result;
 use geocoding::{Forward, Openstreetmap, Point};
 use rocket::serde::json::Json;
@@ -26,6 +27,17 @@ use self::providers::luchtmeetnet::Item as LuchtmeetnetItem;
 
 pub(crate) mod maps;
 pub(crate) mod providers;
+
+/// Caching key helper function that can be used by providers.
+///
+/// This is necessary because `f64` does not implement `Eq` nor `Hash`, which is required by
+/// the caching implementation.
+fn cache_key(lat: f64, lon: f64, metric: Metric) -> (i32, i32, Metric) {
+    let lat_key = (lat * 10_000.0) as i32;
+    let lon_key = (lon * 10_000.0) as i32;
+
+    (lat_key, lon_key, metric)
+}
 
 /// The current for a specific location.
 ///
@@ -94,7 +106,7 @@ impl Forecast {
 ///
 /// This is used for selecting which metrics should be calculated & returned.
 #[allow(clippy::upper_case_acronyms)]
-#[derive(Copy, Clone, Debug, Eq, PartialEq, FromFormField)]
+#[derive(Copy, Clone, Debug, Eq, Hash, PartialEq, FromFormField)]
 enum Metric {
     /// All metrics.
     #[field(value = "all")]
