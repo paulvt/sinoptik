@@ -105,7 +105,7 @@ pub(crate) async fn get(lat: f64, lon: f64, metric: Metric) -> Option<Vec<Item>>
         .append_pair("lat", &format!("{:.02}", lat))
         .append_pair("lon", &format!("{:.02}", lon));
 
-    println!("▶️  Retrieving Buienradar data from {url}");
+    println!("▶️  Retrieving Buienradar data from: {url}");
     let response = reqwest::get(url).await.ok()?;
     let output = match response.error_for_status() {
         Ok(res) => res.text().await.ok()?,

@@ -69,7 +69,7 @@ pub(crate) async fn get(lat: f64, lon: f64, metric: Metric) -> Option<Vec<Item>>
         .append_pair("latitude", &format!("{:.05}", lat))
         .append_pair("longitude", &format!("{:.05}", lon));
 
-    println!("▶️  Retrieving Luchtmeetnet data from {url}");
+    println!("▶️  Retrieving Luchtmeetnet data from: {url}");
     let response = reqwest::get(url).await.ok()?;
     let root: Container = match response.error_for_status() {
         Ok(res) => res.json().await.ok()?,
