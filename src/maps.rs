@@ -3,8 +3,9 @@
 //! This module provides a task that keeps maps up-to-date using a maps-specific refresh interval.
 //! It stores all the maps as [`DynamicImage`]s in memory.
 
-// TODO: Allow dead code until either precipitation maps get used or dumped.
+// TODO: Allow dead code until either precipitation maps get used or dumped (#8).
 #![allow(dead_code)]
+
 use std::sync::{Arc, Mutex};
 
 use chrono::DurationRound;

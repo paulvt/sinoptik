@@ -10,9 +10,11 @@ use crate::providers;
 use crate::providers::buienradar::Item as BuienradarItem;
 use crate::providers::luchtmeetnet::Item as LuchtmeetnetItem;
 
-/// The current for a specific location.
+/// The current forecast for a specific location.
 ///
 /// Only the metrics asked for are included as well as the position and current time.
+///
+// TODO: Fill in missing data (#3)
 #[derive(Debug, Default, Serialize)]
 #[serde(crate = "rocket::serde")]
 pub(crate) struct Forecast {
@@ -59,19 +61,18 @@ pub(crate) struct Forecast {
 }
 
 impl Forecast {
-    fn new(lat: f64, lon: f64) -> Self {
-        let time = chrono::Utc::now().timestamp();
-
+    fn new(position: Position) -> Self {
         Self {
-            lat,
-            lon,
-            time,
+            lat: position.lat,
+            lon: position.lon,
+            time: chrono::Utc::now().timestamp(),
+
             ..Default::default()
         }
     }
 }
 
-/// The supported metrics.
+/// The supported forecast metrics.
 ///
 /// This is used for selecting which metrics should be calculated & returned.
 #[allow(clippy::upper_case_acronyms)]
