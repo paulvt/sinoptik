@@ -30,6 +30,9 @@ const POLLEN_BASE_URL: &str =
 /// The endpoint provides a map for every hour, 24 in total.
 const POLLEN_INTERVAL: Duration = Duration::from_secs(3_600);
 
+/// The number of pollen maps retained.
+const POLLEN_MAP_COUNT: usize = 24;
+
 /// The base URL for retrieving the precipitation map from Weerplaza.
 const PRECIPITATION_BASE_URL: &str =
     "https://cluster.api.meteoplaza.com/v3/nowcast/tiles/radarnl-forecast";
@@ -38,6 +41,9 @@ const PRECIPITATION_BASE_URL: &str =
 ///
 /// The series contains images for every 5 minutes, 24 in total.
 const PRECIPITATION_INTERVAL: Duration = Duration::from_secs(300);
+
+/// The number of precipitation maps retained.
+const PRECIPITATION_MAP_COUNT: usize = 24;
 
 /// The base URL for retrieving the UV index maps from Buienradar.
 const UVI_BASE_URL: &str = "https://image.buienradar.nl/2.0/image/sprite/WeatherMapUVIndexNL\
@@ -48,6 +54,9 @@ const UVI_BASE_URL: &str = "https://image.buienradar.nl/2.0/image/sprite/Weather
 ///
 /// The endpoint provides a map for every day, 5 in total.
 const UVI_INTERVAL: Duration = Duration::from_secs(24 * 3_600);
+
+/// The number of UV index maps retained.
+const UVI_MAP_COUNT: usize = 5;
 
 /// The `MapsRefresh` trait is used to reduce the time a lock needs to be held when updating maps.
 ///
@@ -67,7 +76,7 @@ trait MapsRefresh {
     fn set_pollen(&self, pollen: Option<DynamicImage>);
 
     /// Updates the precipitation maps.
-    fn set_precipitation(&self, precipitation: [Option<DynamicImage>; 24]);
+    fn set_precipitation(&self, precipitation: [Option<DynamicImage>; PRECIPITATION_MAP_COUNT]);
 
     /// Updates the UV index maps.
     fn set_uvi(&self, uvi: Option<DynamicImage>);
@@ -85,7 +94,7 @@ pub(crate) struct Maps {
     /// The precipitation maps (from Weerplaza).
     // TODO: Make one large image instead of using an array? This is already the case for the
     //   other maps.
-    pub(crate) precipitation: [Option<DynamicImage>; 24],
+    pub(crate) precipitation: [Option<DynamicImage>; PRECIPITATION_MAP_COUNT],
 
     /// The timestamp the precipitation maps were last refreshed.
     precipitation_stamp: Instant,
@@ -98,10 +107,14 @@ pub(crate) struct Maps {
 }
 
 impl Maps {
+    /// Creates a new maps cache.
+    ///
+    /// It contains an [`DynamicImage`] per maps type, if downloaded, and the timestamp of the last
+    /// update.
     pub(crate) fn new() -> Self {
         let now = Instant::now();
         // Because `Option<DynamicImage>` does not implement `Copy`
-        let precipitation = [(); 24].map(|_| None);
+        let precipitation = [(); PRECIPITATION_MAP_COUNT].map(|_| None);
 
         Self {
             pollen: None,
@@ -111,6 +124,25 @@ impl Maps {
             uvi: None,
             uvi_stamp: now,
         }
+    }
+
+    /// Returns the first available pollen map.
+    pub(crate) fn pollen_first(&self) -> Option<DynamicImage> {
+        self.pollen
+            .as_ref()
+            .map(|map| map.crop_imm(0, 0, map.width() / POLLEN_MAP_COUNT as u32, map.height()))
+    }
+
+    /// Returns the first available precipitation map.
+    pub(crate) fn precipitation_first(&self) -> Option<DynamicImage> {
+        self.precipitation[0].as_ref().map(Clone::clone)
+    }
+
+    /// Returns the first available UV index map.
+    pub(crate) fn uvi_first(&self) -> Option<DynamicImage> {
+        self.uvi
+            .as_ref()
+            .map(|map| map.crop_imm(0, 0, map.width() / UVI_MAP_COUNT as u32, map.height()))
     }
 }
 
