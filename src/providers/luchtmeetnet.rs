@@ -8,7 +8,8 @@ use chrono::{DateTime, Utc};
 use reqwest::Url;
 use rocket::serde::{Deserialize, Serialize};
 
-use crate::{cache_key, Metric};
+use crate::position::Position;
+use crate::Metric;
 
 /// The base URL for the Luchtmeetnet API.
 const LUCHTMEETNET_BASE_URL: &str = "https://api.luchtmeetnet.nl/open_api/concentrations";
@@ -52,13 +53,8 @@ pub(crate) struct Item {
 ///
 /// If the result is [`Some`] it will be cached for 30 minutes for the the given position and
 /// metric.
-#[cached(
-    time = 1800,
-    convert = "{ cache_key(lat, lon, metric) }",
-    key = "(i32, i32, Metric)",
-    option = true
-)]
-pub(crate) async fn get(lat: f64, lon: f64, metric: Metric) -> Option<Vec<Item>> {
+#[cached(time = 1800, option = true)]
+pub(crate) async fn get(position: Position, metric: Metric) -> Option<Vec<Item>> {
     let formula = match metric {
         Metric::AQI => "lki",
         Metric::NO2 => "no2",
@@ -69,8 +65,8 @@ pub(crate) async fn get(lat: f64, lon: f64, metric: Metric) -> Option<Vec<Item>>
     let mut url = Url::parse(LUCHTMEETNET_BASE_URL).unwrap();
     url.query_pairs_mut()
         .append_pair("formula", formula)
-        .append_pair("latitude", &format!("{:.05}", lat))
-        .append_pair("longitude", &format!("{:.05}", lon));
+        .append_pair("latitude", &position.lat_as_str(5))
+        .append_pair("longitude", &position.lon_as_str(5));
 
     println!("▶️  Retrieving Luchtmeetnet data from: {url}");
     let response = reqwest::get(url).await.ok()?;

@@ -6,6 +6,7 @@
 use rocket::serde::Serialize;
 
 use crate::maps::MapsHandle;
+use crate::position::Position;
 use crate::providers;
 use crate::providers::buienradar::Item as BuienradarItem;
 use crate::providers::luchtmeetnet::Item as LuchtmeetnetItem;
@@ -112,12 +113,11 @@ impl Metric {
 ///
 /// The provided list `metrics` determines what will be included in the forecast.
 pub(crate) async fn forecast(
-    lat: f64,
-    lon: f64,
+    position: Position,
     metrics: Vec<Metric>,
     _maps_handle: &MapsHandle,
 ) -> Forecast {
-    let mut forecast = Forecast::new(lat, lon);
+    let mut forecast = Forecast::new(position);
 
     // Expand the `All` metric if present, deduplicate otherwise.
     let mut metrics = metrics;
@@ -131,14 +131,14 @@ pub(crate) async fn forecast(
         match metric {
             // This should have been expanded to all the metrics matched below.
             Metric::All => unreachable!("The all metric should have been expanded"),
-            Metric::AQI => forecast.aqi = providers::luchtmeetnet::get(lat, lon, metric).await,
-            Metric::NO2 => forecast.no2 = providers::luchtmeetnet::get(lat, lon, metric).await,
-            Metric::O3 => forecast.o3 = providers::luchtmeetnet::get(lat, lon, metric).await,
+            Metric::AQI => forecast.aqi = providers::luchtmeetnet::get(position, metric).await,
+            Metric::NO2 => forecast.no2 = providers::luchtmeetnet::get(position, metric).await,
+            Metric::O3 => forecast.o3 = providers::luchtmeetnet::get(position, metric).await,
             Metric::PAQI => forecast.paqi = Some(()),
-            Metric::PM10 => forecast.pm10 = providers::luchtmeetnet::get(lat, lon, metric).await,
+            Metric::PM10 => forecast.pm10 = providers::luchtmeetnet::get(position, metric).await,
             Metric::Pollen => forecast.pollen = Some(()),
             Metric::Precipitation => {
-                forecast.precipitation = providers::buienradar::get(lat, lon, metric).await
+                forecast.precipitation = providers::buienradar::get(position, metric).await
             }
             Metric::UVI => forecast.uvi = Some(()),
         }
