@@ -14,6 +14,8 @@
 use std::sync::{Arc, Mutex};
 
 use color_eyre::Result;
+use rocket::http::ContentType;
+use rocket::response::content::Custom;
 use rocket::serde::json::Json;
 use rocket::tokio::{self, select};
 use rocket::{get, routes, State};
@@ -55,6 +57,52 @@ async fn forecast_geo(
     Json(forecast)
 }
 
+/// Handler for showing the current map with the geocoded position for a specific metric.
+///
+/// Note: This handler is mosly used for debugging purposes!
+#[get("/map?<lat>&<lon>&<metric>")]
+async fn show_map(
+    lat: f64,
+    lon: f64,
+    metric: Metric,
+    maps_handle: &State<MapsHandle>,
+) -> Option<Custom<Vec<u8>>> {
+    use image::{GenericImage, Rgba};
+    use std::io::Cursor;
+
+    let maps = maps_handle.lock().expect("Maps handle lock was poisoned");
+    let mut image = match metric {
+        Metric::PAQI => maps.pollen_first()?,
+        Metric::Pollen => maps.pollen_first()?,
+        Metric::UVI => maps.uvi_first()?,
+        _ => return None, // Unsupported metric
+    };
+
+    // Paint the provided position on the map using a 11×11 pixel square.
+    // FIXME: Use an actual correct calculation, instead of this very rough estimation!
+    let rel_x = (lon - 3.3) / 4.0; // 3.3..7.3, 4.0
+    let rel_y = 1.0 - ((lat - 50.7) / 3.0); // 50.7..53.7, 3.0
+    let x = (rel_x * image.height() as f64) as u32;
+    let y = (rel_y * image.width() as f64) as u32;
+    for px in x - 5..=x + 5 {
+        for py in y - 5..=y + 5 {
+            image.put_pixel(px, py, Rgba::from([0xff, 0x0, 0x0, 0x70]));
+        }
+    }
+
+    // Encode the image as PNG image data.
+    // FIXME: This encoding call blocks the worker thread!
+    let mut image_data = Cursor::new(Vec::new());
+    image
+        .write_to(
+            &mut image_data,
+            image::ImageOutputFormat::from(image::ImageFormat::Png),
+        )
+        .ok()?;
+
+    Some(Custom(ContentType::PNG, image_data.into_inner()))
+}
+
 /// Starts the main maps refresh loop and sets up and launches Rocket.
 ///
 /// See [`maps::run`] for the maps refresh loop.
@@ -68,7 +116,7 @@ async fn main() -> Result<()> {
 
     let rocket = rocket::build()
         .manage(maps_handle)
-        .mount("/", routes![forecast_address, forecast_geo])
+        .mount("/", routes![forecast_address, forecast_geo, show_map])
         .ignite()
         .await?;
     let shutdown = rocket.shutdown();
