@@ -9,8 +9,9 @@
 use std::sync::{Arc, Mutex};
 
 use chrono::DurationRound;
-use image::DynamicImage;
+use image::{DynamicImage, ImageFormat};
 use reqwest::Url;
+use rocket::tokio;
 use rocket::tokio::time::{sleep, Duration, Instant};
 
 /// A handle to access the in-memory cached maps.
@@ -191,7 +192,12 @@ async fn retrieve_image(url: Url) -> Option<DynamicImage> {
     let response = reqwest::get(url).await.ok()?;
     let bytes = response.bytes().await.ok()?;
 
-    image::load_from_memory(&bytes).ok()
+    tokio::task::spawn_blocking(move || {
+        image::load_from_memory_with_format(&bytes, ImageFormat::Png)
+    })
+    .await
+    .ok()?
+    .ok()
 }
 
 /// Retrieves the pollen maps from Buienradar.
