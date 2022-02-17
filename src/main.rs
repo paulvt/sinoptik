@@ -61,15 +61,18 @@ async fn forecast_geo(
 /// Handler for showing the current map with the geocoded position for a specific metric.
 ///
 /// Note: This handler is mosly used for debugging purposes!
-#[get("/map?<lat>&<lon>&<metric>")]
+#[get("/map?<address>&<metric>")]
 async fn show_map(
-    lat: f64,
-    lon: f64,
+    address: String,
     metric: Metric,
     maps_handle: &State<MapsHandle>,
 ) -> Option<Custom<Vec<u8>>> {
     use image::{GenericImage, Rgba};
     use std::io::Cursor;
+
+    let position = resolve_address(address).await?;
+    let lat = position.lat;
+    let lon = position.lon;
 
     let now = Instant::now();
     let maps = maps_handle.lock().expect("Maps handle lock was poisoned");
