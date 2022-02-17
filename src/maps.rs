@@ -32,7 +32,10 @@ const POLLEN_BASE_URL: &str =
 const POLLEN_INTERVAL: Duration = Duration::from_secs(3_600);
 
 /// The number of pollen maps retained.
-const POLLEN_MAP_COUNT: usize = 24;
+const POLLEN_MAP_COUNT: u32 = 24;
+
+/// The number of seconds each pollen map is for.
+const POLLEN_MAP_INTERVAL: u64 = 3_600;
 
 /// The base URL for retrieving the precipitation map from Weerplaza.
 const PRECIPITATION_BASE_URL: &str =
@@ -46,6 +49,9 @@ const PRECIPITATION_INTERVAL: Duration = Duration::from_secs(300);
 /// The number of precipitation maps retained.
 const PRECIPITATION_MAP_COUNT: usize = 24;
 
+/// The number of seconds each precipitation map is for.
+const PRECIPITATION_MAP_INTERVAL: u64 = 300;
+
 /// The base URL for retrieving the UV index maps from Buienradar.
 const UVI_BASE_URL: &str = "https://image.buienradar.nl/2.0/image/sprite/WeatherMapUVIndexNL\
         ?width=820&height=988&extension=png&&renderBackground=False&renderBranding=False\
@@ -57,7 +63,10 @@ const UVI_BASE_URL: &str = "https://image.buienradar.nl/2.0/image/sprite/Weather
 const UVI_INTERVAL: Duration = Duration::from_secs(24 * 3_600);
 
 /// The number of UV index maps retained.
-const UVI_MAP_COUNT: usize = 5;
+const UVI_MAP_COUNT: u32 = 5;
+
+/// The number of seconds each UV index map is for.
+const UVI_MAP_INTERVAL: u64 = 24 * 3_600;
 
 /// The `MapsRefresh` trait is used to reduce the time a lock needs to be held when updating maps.
 ///
@@ -127,23 +136,57 @@ impl Maps {
         }
     }
 
-    /// Returns the first available pollen map.
-    pub(crate) fn pollen_first(&self) -> Option<DynamicImage> {
-        self.pollen
-            .as_ref()
-            .map(|map| map.crop_imm(0, 0, map.width() / POLLEN_MAP_COUNT as u32, map.height()))
+    /// Returns the pollen map for the given instant.
+    ///
+    /// This returns [`None`] if the map is not in the cache yet, or if `instant` is too far in the
+    /// future with respect to the cached maps.
+    pub(crate) fn pollen_at(&self, instant: Instant) -> Option<DynamicImage> {
+        let duration = instant.duration_since(self.pollen_stamp);
+        let offset = (duration.as_secs() / POLLEN_MAP_INTERVAL) as u32;
+        // Check if out of bounds.
+        if offset >= POLLEN_MAP_COUNT {
+            return None;
+        }
+
+        self.pollen.as_ref().map(|map| {
+            let width = map.width() / POLLEN_MAP_COUNT;
+
+            map.crop_imm(offset * width, 0, width, map.height())
+        })
     }
 
-    /// Returns the first available precipitation map.
-    pub(crate) fn precipitation_first(&self) -> Option<DynamicImage> {
-        self.precipitation[0].as_ref().map(Clone::clone)
+    /// Returns the precipitation map for the given instant.
+    ///
+    /// This returns [`None`] if the map is not in the cache yet, or if `instant` is too far in the
+    /// future with respect to the cached maps.
+    pub(crate) fn precipitation_at(&self, instant: Instant) -> Option<DynamicImage> {
+        let duration = instant.duration_since(self.precipitation_stamp);
+        let offset = (duration.as_secs() / PRECIPITATION_MAP_INTERVAL) as usize;
+        // Check if out of bounds.
+        if offset >= PRECIPITATION_MAP_COUNT {
+            return None;
+        }
+
+        self.precipitation[offset].as_ref().map(Clone::clone)
     }
 
-    /// Returns the first available UV index map.
-    pub(crate) fn uvi_first(&self) -> Option<DynamicImage> {
-        self.uvi
-            .as_ref()
-            .map(|map| map.crop_imm(0, 0, map.width() / UVI_MAP_COUNT as u32, map.height()))
+    /// Returns the UV index map for the given instant.
+    ///
+    /// This returns [`None`] if the map is not in the cache yet, or if `instant` is too far in
+    /// the future with respect to the cached maps.
+    pub(crate) fn uvi_at(&self, instant: Instant) -> Option<DynamicImage> {
+        let duration = instant.duration_since(self.uvi_stamp);
+        let offset = (duration.as_secs() / UVI_MAP_INTERVAL) as u32;
+        // Check if out of bounds.
+        if offset >= UVI_MAP_COUNT {
+            return None;
+        }
+
+        self.uvi.as_ref().map(|map| {
+            let width = map.width() / UVI_MAP_COUNT;
+
+            map.crop_imm(offset * width, 0, width, map.height())
+        })
     }
 }
 

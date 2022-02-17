@@ -17,6 +17,7 @@ use color_eyre::Result;
 use rocket::http::ContentType;
 use rocket::response::content::Custom;
 use rocket::serde::json::Json;
+use rocket::tokio::time::Instant;
 use rocket::tokio::{self, select};
 use rocket::{get, routes, State};
 
@@ -70,11 +71,12 @@ async fn show_map(
     use image::{GenericImage, Rgba};
     use std::io::Cursor;
 
+    let now = Instant::now();
     let maps = maps_handle.lock().expect("Maps handle lock was poisoned");
     let mut image = match metric {
-        Metric::PAQI => maps.pollen_first()?,
-        Metric::Pollen => maps.pollen_first()?,
-        Metric::UVI => maps.uvi_first()?,
+        Metric::PAQI => maps.pollen_at(now)?,
+        Metric::Pollen => maps.pollen_at(now)?,
+        Metric::UVI => maps.uvi_at(now)?,
         _ => return None, // Unsupported metric
     };
 
