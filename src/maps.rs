@@ -73,14 +73,23 @@ const UVI_MAP_INTERVAL: u64 = 24 * 3_600;
 /// When refreshing maps, the lock only needs to be held when checking whether a refresh is
 /// necessary and when the new maps have been retrieved and can be updated.
 trait MapsRefresh {
-    /// Determines whether the pollen maps need to be refresh.
+    /// Determines whether the pollen maps need to be refreshed.
     fn needs_pollen_refresh(&self) -> bool;
 
-    /// Determines whether the precipitation maps need to be refresh.
+    /// Determines whether the precipitation maps need to be refreshed.
     fn needs_precipitation_refresh(&self) -> bool;
 
-    /// Determines whether the UV index maps need to be refresh.
+    /// Determines whether the UV index maps need to be refreshed.
     fn needs_uvi_refresh(&self) -> bool;
+
+    /// Determines whether the pollen maps are stale.
+    fn is_pollen_stale(&self) -> bool;
+
+    /// Determines whether the precipitation maps are stale.
+    fn is_precipitation_stale(&self) -> bool;
+
+    /// Determines whether the UV index maps are stale.
+    fn is_uvi_stale(&self) -> bool;
 
     /// Updates the pollen maps.
     fn set_pollen(&self, pollen: Option<DynamicImage>);
@@ -191,6 +200,27 @@ impl Maps {
 }
 
 impl MapsRefresh for MapsHandle {
+    fn is_pollen_stale(&self) -> bool {
+        let maps = self.lock().expect("Maps handle mutex was poisoned");
+
+        Instant::now().duration_since(maps.pollen_stamp)
+            > Duration::from_secs(POLLEN_MAP_COUNT as u64 * POLLEN_MAP_INTERVAL)
+    }
+
+    fn is_precipitation_stale(&self) -> bool {
+        let maps = self.lock().expect("Maps handle mutex was poisoned");
+
+        Instant::now().duration_since(maps.precipitation_stamp)
+            > Duration::from_secs(PRECIPITATION_MAP_COUNT as u64 * PRECIPITATION_MAP_INTERVAL)
+    }
+
+    fn is_uvi_stale(&self) -> bool {
+        let maps = self.lock().expect("Maps handle mutex was poisoned");
+
+        Instant::now().duration_since(maps.uvi_stamp)
+            > Duration::from_secs(UVI_MAP_COUNT as u64 * UVI_MAP_INTERVAL)
+    }
+
     fn needs_pollen_refresh(&self) -> bool {
         let maps = self.lock().expect("Maps handle mutex was poisoned");
         maps.pollen.is_none() || Instant::now().duration_since(maps.pollen_stamp) > POLLEN_INTERVAL
@@ -208,21 +238,28 @@ impl MapsRefresh for MapsHandle {
     }
 
     fn set_pollen(&self, pollen: Option<DynamicImage>) {
-        let mut maps = self.lock().expect("Maps handle mutex was poisoned");
-        maps.pollen = pollen;
-        maps.pollen_stamp = Instant::now();
+        if pollen.is_some() || self.is_pollen_stale() {
+            let mut maps = self.lock().expect("Maps handle mutex was poisoned");
+            maps.pollen = pollen;
+            maps.pollen_stamp = Instant::now();
+        }
     }
 
     fn set_precipitation(&self, precipitation: [Option<DynamicImage>; 24]) {
-        let mut maps = self.lock().expect("Maps handle mutex was poisoned");
-        maps.precipitation = precipitation;
-        maps.precipitation_stamp = Instant::now();
+        // If the first map is present, it is already worth setting it.
+        if precipitation[0].is_some() || self.is_precipitation_stale() {
+            let mut maps = self.lock().expect("Maps handle mutex was poisoned");
+            maps.precipitation = precipitation;
+            maps.precipitation_stamp = Instant::now();
+        }
     }
 
     fn set_uvi(&self, uvi: Option<DynamicImage>) {
-        let mut maps = self.lock().expect("Maps handle mutex was poisoned");
-        maps.uvi = uvi;
-        maps.uvi_stamp = Instant::now();
+        if uvi.is_some() || self.is_uvi_stale() {
+            let mut maps = self.lock().expect("Maps handle mutex was poisoned");
+            maps.uvi = uvi;
+            maps.uvi_stamp = Instant::now();
+        }
     }
 }
 
