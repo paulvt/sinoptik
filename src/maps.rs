@@ -3,12 +3,20 @@
 //! This module provides a task that keeps maps up-to-date using a maps-specific refresh interval.
 //! It stores all the maps as [`DynamicImage`]s in memory.
 
+// TODO: Allow dead code until #9 is implemented.
+#![allow(dead_code)]
+
 use std::sync::{Arc, Mutex};
 
+use chrono::serde::ts_seconds;
+use chrono::{DateTime, Utc};
 use image::{DynamicImage, ImageFormat};
 use reqwest::Url;
+use rocket::serde::Serialize;
 use rocket::tokio;
 use rocket::tokio::time::{sleep, Duration, Instant};
+
+use crate::position::Position;
 
 /// A handle to access the in-memory cached maps.
 pub(crate) type MapsHandle = Arc<Mutex<Maps>>;
@@ -33,6 +41,16 @@ const POLLEN_MAP_COUNT: u32 = 24;
 /// The number of seconds each pollen map is for.
 const POLLEN_MAP_INTERVAL: u64 = 3_600;
 
+/// The position reference points for the pollen map.
+///
+/// Maps the gecoded positions of two reference points as follows:
+/// * Latitude and longitude of Vlissingen to its y- and x-position
+/// * Latitude of Lauwersoog to its y-position and longitude of Enschede to its x-position
+const POLLEN_MAP_REF_POINTS: [(Position, (u32, u32)); 2] = [
+    (Position::new(5.1, 3.57), (84, 745)),  // Vlissingen
+    (Position::new(53.4, 6.9), (111, 694)), // Lauwersoog (lat/y) and Enschede (lon/x)
+];
+
 /// The base URL for retrieving the UV index maps from Buienradar.
 const UVI_BASE_URL: &str = "https://image.buienradar.nl/2.0/image/sprite/WeatherMapUVIndexNL\
         ?width=820&height=988&extension=png&&renderBackground=False&renderBranding=False\
@@ -48,6 +66,9 @@ const UVI_MAP_COUNT: u32 = 5;
 
 /// The number of seconds each UV index map is for.
 const UVI_MAP_INTERVAL: u64 = 24 * 3_600;
+
+/// The position reference points for the UV index map.
+const POLLEN_UVI_REF_POINT: [(Position, (u32, u32)); 2] = POLLEN_MAP_REF_POINTS;
 
 /// The `MapsRefresh` trait is used to reduce the time a lock needs to be held when updating maps.
 ///
@@ -106,7 +127,7 @@ impl Maps {
 
     /// Returns the pollen map for the given instant.
     ///
-    /// This returns [`None`] if the map is not in the cache yet, or if `instant` is too far in the
+    /// This returns [`None`] if the maps are not in the cache yet, or if `instant` is too far in the
     /// future with respect to the cached maps.
     pub(crate) fn pollen_at(&self, instant: Instant) -> Option<DynamicImage> {
         let duration = instant.duration_since(self.pollen_stamp);
@@ -123,9 +144,29 @@ impl Maps {
         })
     }
 
+    /// Projects the provided geocoded position to a coordinat on a pollen map.
+    ///
+    /// This returns [`None`] if the maps are not in the cache yet.
+    fn pollen_project(&self, _position: Position) -> Option<(u32, u32)> {
+        // TODO: Use map width (with `POLLEN_MAP_COUNT`), map height and `POLLEN_MAP_REF_POINTS`.
+        //   Then, call shared function with `uvi_sample`.
+        todo!();
+    }
+
+    /// Samples the pollen maps for the given position.
+    ///
+    /// This returns [`None`] if the maps are not in the cache yet.
+    /// Otherwise, it returns [`Some`] with a list of pollen sample, one for each map
+    /// in the series of maps.
+    pub(crate) fn pollen_sample(&self, _position: Position) -> Option<Vec<PollenSample>> {
+        // TODO: Sample each map using the projected coordinates from the pollen map
+        //   timestamp, yielding it for each `POLLEN_MAP_INTERVAL`.
+        todo!()
+    }
+
     /// Returns the UV index map for the given instant.
     ///
-    /// This returns [`None`] if the map is not in the cache yet, or if `instant` is too far in
+    /// This returns [`None`] if the maps are not in the cache yet, or if `instant` is too far in
     /// the future with respect to the cached maps.
     pub(crate) fn uvi_at(&self, instant: Instant) -> Option<DynamicImage> {
         let duration = instant.duration_since(self.uvi_stamp);
@@ -140,6 +181,26 @@ impl Maps {
 
             map.crop_imm(offset * width, 0, width, map.height())
         })
+    }
+
+    /// Projects the provided geocoded position to a coordinat on an UV index map.
+    ///
+    /// This returns [`None`] if the maps are not in the cache yet.
+    fn uvi_project(&self, _position: Position) -> Option<(u32, u32)> {
+        // TODO: Use map width (with `UVI_MAP_COUNT`), map height and `UVI_MAP_REF_POINTS`.
+        //   Then, call shared function with `pollen_sample`.
+        todo!();
+    }
+
+    /// Samples the UV index maps for the given position.
+    ///
+    /// This returns [`None`] if the maps are not in the cache yet.
+    /// Otherwise, it returns [`Some`] with a list of UV index sample, one for each map
+    /// in the series of maps.
+    pub(crate) fn uvi_sample(&self, _position: Position) -> Option<Vec<UviSample>> {
+        // TODO: Sample each map using the projected coordinates from the UV index map
+        //   timestamp, yielding it for each `UVI_MAP_INTERVAL`.
+        todo!()
     }
 }
 
@@ -183,6 +244,38 @@ impl MapsRefresh for MapsHandle {
             maps.uvi_stamp = Instant::now();
         }
     }
+}
+
+/// A Buienradar pollen map sample.
+///
+/// This represents a value at a given time.
+#[derive(Clone, Debug, Serialize)]
+#[serde(crate = "rocket::serde")]
+pub(crate) struct PollenSample {
+    /// The time(stamp) of the forecast.
+    #[serde(serialize_with = "ts_seconds::serialize")]
+    time: DateTime<Utc>,
+
+    /// The forecasted value.
+    ///
+    /// A value in the range `1..=10`.
+    value: u8,
+}
+
+/// A Buienradar UV index map sample.
+///
+/// This represents a value at a given time.
+#[derive(Clone, Debug, Serialize)]
+#[serde(crate = "rocket::serde")]
+pub(crate) struct UviSample {
+    /// The time(stamp) of the forecast.
+    #[serde(serialize_with = "ts_seconds::serialize")]
+    time: DateTime<Utc>,
+
+    /// The forecasted value.
+    ///
+    /// A value in the range `1..=10`.
+    value: u8,
 }
 
 /// Retrieves an image from the provided URL.

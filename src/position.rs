@@ -26,7 +26,7 @@ pub(crate) struct Position {
 
 impl Position {
     /// Creates a new (geocoded) position.
-    pub(crate) fn new(lat: f64, lon: f64) -> Self {
+    pub(crate) const fn new(lat: f64, lon: f64) -> Self {
         Self { lat, lon }
     }
 
