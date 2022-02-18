@@ -71,27 +71,23 @@ async fn show_map(
     use std::io::Cursor;
 
     let position = resolve_address(address).await?;
-    let lat = position.lat;
-    let lon = position.lon;
-
     let now = Instant::now();
     let maps = maps_handle.lock().expect("Maps handle lock was poisoned");
-    let mut image = match metric {
-        Metric::PAQI => maps.pollen_at(now)?,
-        Metric::Pollen => maps.pollen_at(now)?,
-        Metric::UVI => maps.uvi_at(now)?,
+    let (mut image, coords) = match metric {
+        Metric::PAQI => (maps.pollen_at(now)?, maps.pollen_project(position)),
+        Metric::Pollen => (maps.pollen_at(now)?, maps.pollen_project(position)),
+        Metric::UVI => (maps.uvi_at(now)?, maps.uvi_project(position)),
         _ => return None, // Unsupported metric
     };
+    drop(maps);
 
-    // Paint the provided position on the map using a 11×11 pixel square.
-    // FIXME: Use an actual correct calculation, instead of this very rough estimation!
-    let rel_x = (lon - 3.3) / 4.0; // 3.3..7.3, 4.0
-    let rel_y = 1.0 - ((lat - 50.7) / 3.0); // 50.7..53.7, 3.0
-    let x = (rel_x * image.height() as f64) as u32;
-    let y = (rel_y * image.width() as f64) as u32;
-    for px in x - 5..=x + 5 {
-        for py in y - 5..=y + 5 {
-            image.put_pixel(px, py, Rgba::from([0xff, 0x0, 0x0, 0x70]));
+    if let Some((x, y)) = coords {
+        for py in 0..(image.height() - 1) {
+            image.put_pixel(x, py, Rgba::from([0x00, 0x00, 0x00, 0x70]));
+        }
+
+        for px in 0..(image.width() - 1) {
+            image.put_pixel(px, y, Rgba::from([0x00, 0x00, 0x00, 0x70]));
         }
     }
 
