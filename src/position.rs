@@ -8,6 +8,8 @@ use cached::proc_macro::cached;
 use geocoding::{Forward, Openstreetmap, Point};
 use rocket::tokio;
 
+use std::f64::consts::PI;
+
 /// A (geocoded) position.
 ///
 /// This is used for measuring and communication positions directly on the Earth as latitude and
@@ -44,6 +46,16 @@ impl Position {
     /// precision of 5 decimals.
     fn lon_as_i32(&self) -> i32 {
         (self.lon * 10_000.0).round() as i32
+    }
+
+    /// Returns the latitude in radians.
+    pub(crate) fn lat_as_rad(&self) -> f64 {
+        self.lat * PI / 180.0
+    }
+
+    /// Returns the longitude in radians.
+    pub(crate) fn lon_as_rad(&self) -> f64 {
+        self.lon * PI / 180.0
     }
 
     /// Returns the latitude as a string with the given precision.
