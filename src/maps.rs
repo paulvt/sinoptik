@@ -159,6 +159,7 @@ impl Maps {
     /// This returns [`None`] if the maps are not in the cache yet.
     /// Otherwise, it returns [`Some`] with a list of pollen sample, one for each map
     /// in the series of maps.
+    #[allow(dead_code)]
     pub(crate) fn pollen_sample(&self, _position: Position) -> Option<Vec<PollenSample>> {
         // TODO: Sample each map using the projected coordinates from the pollen map
         //   timestamp, yielding it for each `POLLEN_MAP_INTERVAL`.
@@ -198,6 +199,7 @@ impl Maps {
     /// This returns [`None`] if the maps are not in the cache yet.
     /// Otherwise, it returns [`Some`] with a list of UV index sample, one for each map
     /// in the series of maps.
+    #[allow(dead_code)]
     pub(crate) fn uvi_sample(&self, _position: Position) -> Option<Vec<UviSample>> {
         // TODO: Sample each map using the projected coordinates from the UV index map
         //   timestamp, yielding it for each `UVI_MAP_INTERVAL`.
