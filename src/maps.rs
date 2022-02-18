@@ -6,11 +6,12 @@
 // TODO: Allow dead code until #9 is implemented.
 #![allow(dead_code)]
 
+use std::f64::consts::PI;
 use std::sync::{Arc, Mutex};
 
 use chrono::serde::ts_seconds;
 use chrono::{DateTime, Utc};
-use image::{DynamicImage, ImageFormat};
+use image::{DynamicImage, GenericImageView, ImageFormat};
 use reqwest::Url;
 use rocket::serde::Serialize;
 use rocket::tokio;
@@ -47,8 +48,8 @@ const POLLEN_MAP_INTERVAL: u64 = 3_600;
 /// * Latitude and longitude of Vlissingen to its y- and x-position
 /// * Latitude of Lauwersoog to its y-position and longitude of Enschede to its x-position
 const POLLEN_MAP_REF_POINTS: [(Position, (u32, u32)); 2] = [
-    (Position::new(5.1, 3.57), (84, 745)),  // Vlissingen
-    (Position::new(53.4, 6.9), (111, 694)), // Lauwersoog (lat/y) and Enschede (lon/x)
+    (Position::new(51.44, 3.57), (745, 84)),  // Vlissingen
+    (Position::new(53.40, 6.90), (111, 694)), // Lauwersoog (lat/y) and Enschede (lon/x)
 ];
 
 /// The base URL for retrieving the UV index maps from Buienradar.
@@ -68,7 +69,7 @@ const UVI_MAP_COUNT: u32 = 5;
 const UVI_MAP_INTERVAL: u64 = 24 * 3_600;
 
 /// The position reference points for the UV index map.
-const POLLEN_UVI_REF_POINT: [(Position, (u32, u32)); 2] = POLLEN_MAP_REF_POINTS;
+const UVI_MAP_REF_POINTS: [(Position, (u32, u32)); 2] = POLLEN_MAP_REF_POINTS;
 
 /// The `MapsRefresh` trait is used to reduce the time a lock needs to be held when updating maps.
 ///
@@ -144,13 +145,13 @@ impl Maps {
         })
     }
 
-    /// Projects the provided geocoded position to a coordinat on a pollen map.
+    /// Projects the provided geocoded position to a coordinate on a pollen map.
     ///
     /// This returns [`None`] if the maps are not in the cache yet.
-    fn pollen_project(&self, _position: Position) -> Option<(u32, u32)> {
-        // TODO: Use map width (with `POLLEN_MAP_COUNT`), map height and `POLLEN_MAP_REF_POINTS`.
-        //   Then, call shared function with `uvi_sample`.
-        todo!();
+    pub(crate) fn pollen_project(&self, position: Position) -> Option<(u32, u32)> {
+        self.pollen
+            .as_ref()
+            .and_then(move |map| project(map, POLLEN_MAP_REF_POINTS, position))
     }
 
     /// Samples the pollen maps for the given position.
@@ -183,13 +184,13 @@ impl Maps {
         })
     }
 
-    /// Projects the provided geocoded position to a coordinat on an UV index map.
+    /// Projects the provided geocoded position to a coordinate on an UV index map.
     ///
     /// This returns [`None`] if the maps are not in the cache yet.
-    fn uvi_project(&self, _position: Position) -> Option<(u32, u32)> {
-        // TODO: Use map width (with `UVI_MAP_COUNT`), map height and `UVI_MAP_REF_POINTS`.
-        //   Then, call shared function with `pollen_sample`.
-        todo!();
+    pub(crate) fn uvi_project(&self, position: Position) -> Option<(u32, u32)> {
+        self.uvi
+            .as_ref()
+            .and_then(move |map| project(map, UVI_MAP_REF_POINTS, position))
     }
 
     /// Samples the UV index maps for the given position.
@@ -317,6 +318,36 @@ async fn retrieve_uvi_maps() -> Option<DynamicImage> {
 
     println!("🔽 Refreshing UV index maps from: {}", url);
     retrieve_image(url).await
+}
+
+/// Projects the provided gecoded position to a coordinate on a map.
+///
+/// Returns [`None`] if the resulting coordinate is not within the bounds of the map.
+fn project(
+    map: &DynamicImage,
+    ref_points: [(Position, (u32, u32)); 2],
+    pos: Position,
+) -> Option<(u32, u32)> {
+    // Get the data from the reference points.
+    let (ref1, (ref1_y, ref1_x)) = ref_points[0];
+    let (ref2, (ref2_y, ref2_x)) = ref_points[1];
+
+    // For the x-coordinate, use a linear scale.
+    let scale_x = ((ref2_x - ref1_x) as f64) / (ref2.lon_as_rad() - ref1.lon_as_rad());
+    let x = ((pos.lon_as_rad() - ref1.lon_as_rad()) * scale_x + ref1_x as f64).round() as u32;
+
+    // For the y-coordinate,  use a Mercator-projected scale.
+    let mercator_y = |lat: f64| (lat / 2.0 + PI / 4.0).tan().ln();
+    let ref1_merc_y = mercator_y(ref1.lat_as_rad());
+    let ref2_merc_y = mercator_y(ref2.lat_as_rad());
+    let scale_y = ((ref1_y - ref2_y) as f64) / (ref2_merc_y - ref1_merc_y);
+    let y = ((ref2_merc_y - mercator_y(pos.lat_as_rad())) * scale_y + ref2_y as f64).round() as u32;
+
+    if map.in_bounds(x, y) {
+        Some((x, y))
+    } else {
+        None
+    }
 }
 
 /// Runs a loop that keeps refreshing the maps when necessary.
