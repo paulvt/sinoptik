@@ -86,19 +86,11 @@ fn convert_value(v: u16) -> f32 {
 
 /// Retrieves the Buienradar forecasted precipitation items for the provided position.
 ///
-/// It only supports the following metric:
-/// * [`Metric::Precipitation`]
+/// Returns [`None`] if retrieval or deserialization fails.
 ///
-/// Returns [`None`] if retrieval or deserialization fails, or if the metric is not supported by
-/// this provider.
-///
-/// If the result is [`Some`] it will be cached for 5 minutes for the the given position and
-/// metric.
+/// If the result is [`Some`] it will be cached for 5 minutes for the the given position.
 #[cached(time = 300, option = true)]
-pub(crate) async fn get(position: Position, metric: Metric) -> Option<Vec<Item>> {
-    if metric != Metric::Precipitation {
-        return None;
-    }
+async fn get_precipitation(position: Position) -> Option<Vec<Item>> {
     let mut url = Url::parse(BUIENRADAR_BASE_URL).unwrap();
     url.query_pairs_mut()
         .append_pair("lat", &position.lat_as_str(2))
@@ -116,4 +108,18 @@ pub(crate) async fn get(position: Position, metric: Metric) -> Option<Vec<Item>>
         .delimiter(b'|')
         .from_reader(output.as_bytes());
     rdr.deserialize().collect::<Result<_, _>>().ok()
+}
+
+/// Retrieves the Buienradar forecasted items for the provided position.
+///
+/// It only supports the following metric:
+/// * [`Metric::Precipitation`]
+///
+/// Returns [`None`] if retrieval or deserialization fails, or if the metric is not supported by
+/// this provider.
+pub(crate) async fn get(position: Position, metric: Metric) -> Option<Vec<Item>> {
+    match metric {
+        Metric::Precipitation => get_precipitation(position).await,
+        _ => None,
+    }
 }
