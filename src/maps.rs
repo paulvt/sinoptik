@@ -3,15 +3,13 @@
 //! This module provides a task that keeps maps up-to-date using a maps-specific refresh interval.
 //! It stores all the maps as [`DynamicImage`]s in memory.
 
-// TODO: Allow dead code until #9 is implemented.
-#![allow(dead_code)]
-
+use std::collections::HashMap;
 use std::f64::consts::PI;
 use std::sync::{Arc, Mutex};
 
 use chrono::serde::ts_seconds;
 use chrono::{DateTime, Utc};
-use image::{DynamicImage, GenericImageView, ImageFormat};
+use image::{DynamicImage, GenericImageView, ImageFormat, Pixel, Rgb, Rgba};
 use reqwest::Url;
 use rocket::serde::Serialize;
 use rocket::tokio;
@@ -21,6 +19,31 @@ use crate::position::Position;
 
 /// A handle to access the in-memory cached maps.
 pub(crate) type MapsHandle = Arc<Mutex<Maps>>;
+
+/// A histogram mapping map key colors to occurences/counts.
+type MapKeyHistogram = HashMap<Rgb<u8>, u32>;
+
+/// The Buienradar map key used for determining the score of a coordinate by mapping its color.
+///
+/// Note that the actual score starts from 1, not 0 as per this array.
+#[rustfmt::skip]
+const MAP_KEY: [[u8; 3]; 10] = [
+    [ 73, 218,  33],
+    [ 48, 210,   0],
+    [255, 248, 139],
+    [255, 246,  66],
+    [253, 187,  49],
+    [253, 142,  36],
+    [252,  16,  62],
+    [150,  10,  51],
+    [166, 109, 188],
+    [179,  48, 161],
+];
+
+/// The Buienradar map sample size.
+///
+/// Determiess the number of pixels in width/height that is samples around the sampling coordinate.
+const MAP_SAMPLE_SIZE: [u32; 2] = [11, 11];
 
 /// The interval between map refreshes (in seconds).
 const REFRESH_INTERVAL: Duration = Duration::from_secs(60);
@@ -161,11 +184,12 @@ impl Maps {
     /// This returns [`None`] if the maps are not in the cache yet.
     /// Otherwise, it returns [`Some`] with a list of pollen sample, one for each map
     /// in the series of maps.
-    #[allow(dead_code)]
-    pub(crate) fn pollen_sample(&self, _position: Position) -> Option<Vec<PollenSample>> {
-        // TODO: Sample each map using the projected coordinates from the pollen map
-        //   timestamp, yielding it for each `POLLEN_MAP_INTERVAL`.
-        todo!()
+    pub(crate) fn pollen_sample(&self, position: Position) -> Option<Vec<Sample>> {
+        self.pollen.as_ref().and_then(|maps| {
+            let coords = self.pollen_project(position)?;
+
+            sample(maps, POLLEN_MAP_INTERVAL, POLLEN_MAP_COUNT, coords)
+        })
     }
 
     /// Returns the UV index map for the given instant.
@@ -204,10 +228,12 @@ impl Maps {
     /// Otherwise, it returns [`Some`] with a list of UV index sample, one for each map
     /// in the series of maps.
     #[allow(dead_code)]
-    pub(crate) fn uvi_sample(&self, _position: Position) -> Option<Vec<UviSample>> {
-        // TODO: Sample each map using the projected coordinates from the UV index map
-        //   timestamp, yielding it for each `UVI_MAP_INTERVAL`.
-        todo!()
+    pub(crate) fn uvi_sample(&self, position: Position) -> Option<Vec<Sample>> {
+        self.uvi.as_ref().and_then(|maps| {
+            let coords = self.uvi_project(position)?;
+
+            sample(maps, UVI_MAP_INTERVAL, UVI_MAP_COUNT, coords)
+        })
     }
 }
 
@@ -253,36 +279,86 @@ impl MapsRefresh for MapsHandle {
     }
 }
 
-/// A Buienradar pollen map sample.
+/// A Buienradar map sample.
 ///
 /// This represents a value at a given time.
 #[derive(Clone, Debug, Serialize)]
 #[serde(crate = "rocket::serde")]
-pub(crate) struct PollenSample {
+pub(crate) struct Sample {
     /// The time(stamp) of the forecast.
     #[serde(serialize_with = "ts_seconds::serialize")]
     time: DateTime<Utc>,
 
-    /// The forecasted value.
+    /// The forecasted score.
     ///
     /// A value in the range `1..=10`.
-    value: u8,
+    #[serde(rename(serialize = "value"))]
+    score: u8,
 }
 
-/// A Buienradar UV index map sample.
-///
-/// This represents a value at a given time.
-#[derive(Clone, Debug, Serialize)]
-#[serde(crate = "rocket::serde")]
-pub(crate) struct UviSample {
-    /// The time(stamp) of the forecast.
-    #[serde(serialize_with = "ts_seconds::serialize")]
-    time: DateTime<Utc>,
+/// Builds a scoring histogram for the map key.
+fn map_key_histogram() -> MapKeyHistogram {
+    MAP_KEY
+        .into_iter()
+        .fold(HashMap::new(), |mut hm, channels| {
+            hm.insert(Rgb::from(channels), 0);
+            hm
+        })
+}
 
-    /// The forecasted value.
-    ///
-    /// A value in the range `1..=10`.
-    value: u8,
+/// Samples the provided maps at the given (map-relative) coordinates and starting timestamp.
+/// It assumes the provided coordinates are within bounds of at least one map.
+/// The interval is the number of seconds the timestamp is bumped for each map.
+///
+/// Returns [`None`] if it encounters no known colors in any of the samples.
+fn sample<I: GenericImageView<Pixel = Rgba<u8>>>(
+    maps: &I,
+    interval: u64,
+    count: u32,
+    coords: (u32, u32),
+) -> Option<Vec<Sample>> {
+    let (x, y) = coords;
+    let width = maps.width() / count;
+    let height = maps.height();
+    let max_sample_width = (width - x).min(MAP_SAMPLE_SIZE[0]);
+    let max_sample_height = (height - y).min(MAP_SAMPLE_SIZE[1]);
+    let mut samples = Vec::with_capacity(count as usize);
+    let mut time = Utc::now(); // TODO: Should be the timestamp of the map!
+    let mut offset = 0;
+
+    while offset < maps.width() {
+        let map = maps.view(
+            x.saturating_sub(MAP_SAMPLE_SIZE[0] / 2) + offset,
+            y.saturating_sub(MAP_SAMPLE_SIZE[1] / 2),
+            max_sample_width,
+            max_sample_height,
+        );
+        let histogram = map
+            .pixels()
+            .fold(map_key_histogram(), |mut h, (_px, _py, color)| {
+                h.entry(color.to_rgb()).and_modify(|count| *count += 1);
+                h
+            });
+        let (max_color, &count) = histogram
+            .iter()
+            .max_by_key(|(_color, count)| *count)
+            .expect("Map key is never empty");
+        if count == 0 {
+            return None;
+        }
+
+        let score = MAP_KEY
+            .iter()
+            .position(|&color| &Rgb::from(color) == max_color)
+            .map(|score| score + 1) // Scores go from 1..=10, not 0..=9!
+            .expect("Maximum color is always a map key color") as u8;
+
+        samples.push(Sample { time, score });
+        time = time + chrono::Duration::seconds(interval as i64);
+        offset += width;
+    }
+
+    Some(samples)
 }
 
 /// Retrieves an image from the provided URL.

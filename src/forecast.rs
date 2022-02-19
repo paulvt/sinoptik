@@ -8,7 +8,7 @@ use rocket::serde::Serialize;
 use crate::maps::MapsHandle;
 use crate::position::Position;
 use crate::providers;
-use crate::providers::buienradar::Item as BuienradarItem;
+use crate::providers::buienradar::{Item as BuienradarItem, Sample as BuienradarSample};
 use crate::providers::luchtmeetnet::Item as LuchtmeetnetItem;
 
 /// The current forecast for a specific location.
@@ -50,7 +50,7 @@ pub(crate) struct Forecast {
 
     /// The pollen in the air (when asked for).
     #[serde(skip_serializing_if = "Option::is_none")]
-    pollen: Option<()>,
+    pollen: Option<Vec<BuienradarSample>>,
 
     /// The precipitation (when asked for).
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -58,7 +58,7 @@ pub(crate) struct Forecast {
 
     /// The UV index (when asked for).
     #[serde(rename = "UVI", skip_serializing_if = "Option::is_none")]
-    uvi: Option<()>,
+    uvi: Option<Vec<BuienradarSample>>,
 }
 
 impl Forecast {
@@ -115,7 +115,7 @@ impl Metric {
 pub(crate) async fn forecast(
     position: Position,
     metrics: Vec<Metric>,
-    _maps_handle: &MapsHandle,
+    maps_handle: &MapsHandle,
 ) -> Forecast {
     let mut forecast = Forecast::new(position);
 
@@ -136,11 +136,17 @@ pub(crate) async fn forecast(
             Metric::O3 => forecast.o3 = providers::luchtmeetnet::get(position, metric).await,
             Metric::PAQI => forecast.paqi = Some(()),
             Metric::PM10 => forecast.pm10 = providers::luchtmeetnet::get(position, metric).await,
-            Metric::Pollen => forecast.pollen = Some(()),
-            Metric::Precipitation => {
-                forecast.precipitation = providers::buienradar::get(position, metric).await
+            Metric::Pollen => {
+                forecast.pollen =
+                    providers::buienradar::get_samples(position, metric, maps_handle).await
             }
-            Metric::UVI => forecast.uvi = Some(()),
+            Metric::Precipitation => {
+                forecast.precipitation = providers::buienradar::get_items(position, metric).await
+            }
+            Metric::UVI => {
+                forecast.uvi =
+                    providers::buienradar::get_samples(position, metric, maps_handle).await
+            }
         }
     }
 
