@@ -22,7 +22,10 @@ use std::f64::consts::PI;
 /// [`Position::lon_as_i32`]).
 #[derive(Clone, Copy, Debug, Default)]
 pub(crate) struct Position {
+    /// The latitude of the position.
     pub(crate) lat: f64,
+
+    /// The longitude of the position.
     pub(crate) lon: f64,
 }
 
