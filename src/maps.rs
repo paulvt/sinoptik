@@ -138,10 +138,10 @@ impl Maps {
             return None;
         }
 
-        self.pollen.as_ref().map(|map| {
-            let width = map.width() / POLLEN_MAP_COUNT;
+        self.pollen.as_ref().map(|maps| {
+            let width = maps.width() / POLLEN_MAP_COUNT;
 
-            map.crop_imm(offset * width, 0, width, map.height())
+            maps.crop_imm(offset * width, 0, width, maps.height())
         })
     }
 
@@ -149,9 +149,11 @@ impl Maps {
     ///
     /// This returns [`None`] if the maps are not in the cache yet.
     pub(crate) fn pollen_project(&self, position: Position) -> Option<(u32, u32)> {
-        self.pollen
-            .as_ref()
-            .and_then(move |map| project(map, POLLEN_MAP_REF_POINTS, position))
+        self.pollen.as_ref().and_then(|maps| {
+            let map = maps.view(0, 0, maps.width() / POLLEN_MAP_COUNT, maps.height());
+
+            project(&*map, POLLEN_MAP_REF_POINTS, position)
+        })
     }
 
     /// Samples the pollen maps for the given position.
@@ -178,10 +180,10 @@ impl Maps {
             return None;
         }
 
-        self.uvi.as_ref().map(|map| {
-            let width = map.width() / UVI_MAP_COUNT;
+        self.uvi.as_ref().map(|maps| {
+            let width = maps.width() / UVI_MAP_COUNT;
 
-            map.crop_imm(offset * width, 0, width, map.height())
+            maps.crop_imm(offset * width, 0, width, maps.height())
         })
     }
 
@@ -189,9 +191,11 @@ impl Maps {
     ///
     /// This returns [`None`] if the maps are not in the cache yet.
     pub(crate) fn uvi_project(&self, position: Position) -> Option<(u32, u32)> {
-        self.uvi
-            .as_ref()
-            .and_then(move |map| project(map, UVI_MAP_REF_POINTS, position))
+        self.uvi.as_ref().and_then(|maps| {
+            let map = maps.view(0, 0, maps.width() / UVI_MAP_COUNT, maps.height());
+
+            project(&*map, UVI_MAP_REF_POINTS, position)
+        })
     }
 
     /// Samples the UV index maps for the given position.
@@ -322,11 +326,14 @@ async fn retrieve_uvi_maps() -> Option<DynamicImage> {
     retrieve_image(url).await
 }
 
-/// Projects the provided gecoded position to a coordinate on a map.
+/// Projects the provided geocoded position to a coordinate on a map.
+///
+/// This uses two reference points and a Mercator projection on the y-coordinates of those points
+/// to calculate how the map scales with respect to the provided position.
 ///
 /// Returns [`None`] if the resulting coordinate is not within the bounds of the map.
-fn project(
-    map: &DynamicImage,
+fn project<I: GenericImageView>(
+    map: &I,
     ref_points: [(Position, (u32, u32)); 2],
     pos: Position,
 ) -> Option<(u32, u32)> {
