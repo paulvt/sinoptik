@@ -15,7 +15,7 @@ use crate::providers::luchtmeetnet::Item as LuchtmeetnetItem;
 ///
 /// Only the metrics asked for are included as well as the position and current time.
 ///
-// TODO: Fill in missing data (#3)
+// TODO: Fill in missing data (#4)
 #[derive(Debug, Default, Serialize)]
 #[serde(crate = "rocket::serde")]
 pub(crate) struct Forecast {

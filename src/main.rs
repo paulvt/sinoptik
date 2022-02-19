@@ -13,11 +13,11 @@
 
 use std::sync::{Arc, Mutex};
 
+use chrono::Utc;
 use color_eyre::Result;
 use rocket::http::ContentType;
 use rocket::response::content::Custom;
 use rocket::serde::json::Json;
-use rocket::tokio::time::Instant;
 use rocket::tokio::{self, select};
 use rocket::{get, routes, State};
 
@@ -104,7 +104,7 @@ async fn draw_position(
 
     let maps_handle = Arc::clone(maps_handle);
     tokio::task::spawn_blocking(move || {
-        let now = Instant::now();
+        let now = Utc::now();
         let maps = maps_handle.lock().expect("Maps handle lock was poisoned");
         let (mut image, coords) = match metric {
             Metric::PAQI => (maps.pollen_at(now)?, maps.pollen_project(position)),

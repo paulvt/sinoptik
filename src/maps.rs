@@ -8,12 +8,12 @@ use std::f64::consts::PI;
 use std::sync::{Arc, Mutex};
 
 use chrono::serde::ts_seconds;
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, Duration, Utc};
 use image::{DynamicImage, GenericImageView, ImageFormat, Pixel, Rgb, Rgba};
 use reqwest::Url;
 use rocket::serde::Serialize;
 use rocket::tokio;
-use rocket::tokio::time::{sleep, Duration, Instant};
+use rocket::tokio::time::sleep;
 
 use crate::position::Position;
 
@@ -46,7 +46,7 @@ const MAP_KEY: [[u8; 3]; 10] = [
 const MAP_SAMPLE_SIZE: [u32; 2] = [11, 11];
 
 /// The interval between map refreshes (in seconds).
-const REFRESH_INTERVAL: Duration = Duration::from_secs(60);
+const REFRESH_INTERVAL: tokio::time::Duration = tokio::time::Duration::from_secs(60);
 
 /// The base URL for retrieving the pollen maps from Buienradar.
 const POLLEN_BASE_URL: &str =
@@ -57,13 +57,13 @@ const POLLEN_BASE_URL: &str =
 /// The interval for retrieving pollen maps.
 ///
 /// The endpoint provides a map for every hour, 24 in total.
-const POLLEN_INTERVAL: Duration = Duration::from_secs(3_600);
+const POLLEN_INTERVAL: i64 = 3_600;
 
 /// The number of pollen maps retained.
 const POLLEN_MAP_COUNT: u32 = 24;
 
 /// The number of seconds each pollen map is for.
-const POLLEN_MAP_INTERVAL: u64 = 3_600;
+const POLLEN_MAP_INTERVAL: i64 = 3_600;
 
 /// The position reference points for the pollen map.
 ///
@@ -83,13 +83,13 @@ const UVI_BASE_URL: &str = "https://image.buienradar.nl/2.0/image/sprite/Weather
 /// The interval for retrieving UV index maps.
 ///
 /// The endpoint provides a map for every day, 5 in total.
-const UVI_INTERVAL: Duration = Duration::from_secs(24 * 3_600);
+const UVI_INTERVAL: i64 = 24 * 3_600;
 
 /// The number of UV index maps retained.
 const UVI_MAP_COUNT: u32 = 5;
 
 /// The number of seconds each UV index map is for.
-const UVI_MAP_INTERVAL: u64 = 24 * 3_600;
+const UVI_MAP_INTERVAL: i64 = 24 * 3_600;
 
 /// The position reference points for the UV index map.
 const UVI_MAP_REF_POINTS: [(Position, (u32, u32)); 2] = POLLEN_MAP_REF_POINTS;
@@ -112,10 +112,10 @@ trait MapsRefresh {
     fn is_uvi_stale(&self) -> bool;
 
     /// Updates the pollen maps.
-    fn set_pollen(&self, pollen: Option<DynamicImage>);
+    fn set_pollen(&self, result: Option<(DynamicImage, DateTime<Utc>)>);
 
     /// Updates the UV index maps.
-    fn set_uvi(&self, uvi: Option<DynamicImage>);
+    fn set_uvi(&self, result: Option<(DynamicImage, DateTime<Utc>)>);
 }
 
 /// Container type for all in-memory cached maps.
@@ -125,13 +125,13 @@ pub(crate) struct Maps {
     pub(crate) pollen: Option<DynamicImage>,
 
     /// The timestamp the pollen maps were last refreshed.
-    pollen_stamp: Instant,
+    pollen_stamp: DateTime<Utc>,
 
     /// The UV index maps (from Buienradar).
     pub(crate) uvi: Option<DynamicImage>,
 
     /// The timestamp the UV index maps were last refreshed.
-    uvi_stamp: Instant,
+    uvi_stamp: DateTime<Utc>,
 }
 
 impl Maps {
@@ -140,7 +140,7 @@ impl Maps {
     /// It contains an [`DynamicImage`] per maps type, if downloaded, and the timestamp of the last
     /// update.
     pub(crate) fn new() -> Self {
-        let now = Instant::now();
+        let now = Utc::now();
         Self {
             pollen: None,
             pollen_stamp: now,
@@ -153,9 +153,9 @@ impl Maps {
     ///
     /// This returns [`None`] if the maps are not in the cache yet, or if `instant` is too far in the
     /// future with respect to the cached maps.
-    pub(crate) fn pollen_at(&self, instant: Instant) -> Option<DynamicImage> {
-        let duration = instant.duration_since(self.pollen_stamp);
-        let offset = (duration.as_secs() / POLLEN_MAP_INTERVAL) as u32;
+    pub(crate) fn pollen_at(&self, instant: DateTime<Utc>) -> Option<DynamicImage> {
+        let duration = instant.signed_duration_since(self.pollen_stamp);
+        let offset = (duration.num_seconds() / POLLEN_MAP_INTERVAL) as u32;
         // Check if out of bounds.
         if offset >= POLLEN_MAP_COUNT {
             return None;
@@ -188,7 +188,13 @@ impl Maps {
         self.pollen.as_ref().and_then(|maps| {
             let coords = self.pollen_project(position)?;
 
-            sample(maps, POLLEN_MAP_INTERVAL, POLLEN_MAP_COUNT, coords)
+            sample(
+                maps,
+                self.pollen_stamp,
+                POLLEN_MAP_INTERVAL,
+                POLLEN_MAP_COUNT,
+                coords,
+            )
         })
     }
 
@@ -196,9 +202,9 @@ impl Maps {
     ///
     /// This returns [`None`] if the maps are not in the cache yet, or if `instant` is too far in
     /// the future with respect to the cached maps.
-    pub(crate) fn uvi_at(&self, instant: Instant) -> Option<DynamicImage> {
-        let duration = instant.duration_since(self.uvi_stamp);
-        let offset = (duration.as_secs() / UVI_MAP_INTERVAL) as u32;
+    pub(crate) fn uvi_at(&self, instant: DateTime<Utc>) -> Option<DynamicImage> {
+        let duration = instant.signed_duration_since(self.uvi_stamp);
+        let offset = (duration.num_seconds() / UVI_MAP_INTERVAL) as u32;
         // Check if out of bounds.
         if offset >= UVI_MAP_COUNT {
             return None;
@@ -232,7 +238,13 @@ impl Maps {
         self.uvi.as_ref().and_then(|maps| {
             let coords = self.uvi_project(position)?;
 
-            sample(maps, UVI_MAP_INTERVAL, UVI_MAP_COUNT, coords)
+            sample(
+                maps,
+                self.uvi_stamp,
+                UVI_MAP_INTERVAL,
+                UVI_MAP_COUNT,
+                coords,
+            )
         })
     }
 }
@@ -241,40 +253,60 @@ impl MapsRefresh for MapsHandle {
     fn is_pollen_stale(&self) -> bool {
         let maps = self.lock().expect("Maps handle mutex was poisoned");
 
-        Instant::now().duration_since(maps.pollen_stamp)
-            > Duration::from_secs(POLLEN_MAP_COUNT as u64 * POLLEN_MAP_INTERVAL)
+        Utc::now().signed_duration_since(maps.pollen_stamp)
+            > Duration::seconds(POLLEN_MAP_COUNT as i64 * POLLEN_MAP_INTERVAL)
     }
 
     fn is_uvi_stale(&self) -> bool {
         let maps = self.lock().expect("Maps handle mutex was poisoned");
 
-        Instant::now().duration_since(maps.uvi_stamp)
-            > Duration::from_secs(UVI_MAP_COUNT as u64 * UVI_MAP_INTERVAL)
+        Utc::now().signed_duration_since(maps.uvi_stamp)
+            > Duration::seconds(UVI_MAP_COUNT as i64 * UVI_MAP_INTERVAL)
     }
 
     fn needs_pollen_refresh(&self) -> bool {
         let maps = self.lock().expect("Maps handle mutex was poisoned");
-        maps.pollen.is_none() || Instant::now().duration_since(maps.pollen_stamp) > POLLEN_INTERVAL
+
+        maps.pollen.is_none()
+            || Utc::now()
+                .signed_duration_since(maps.pollen_stamp)
+                .num_seconds()
+                > POLLEN_INTERVAL
     }
 
     fn needs_uvi_refresh(&self) -> bool {
         let maps = self.lock().expect("Maps handle mutex was poisoned");
-        maps.uvi.is_none() || Instant::now().duration_since(maps.uvi_stamp) > UVI_INTERVAL
+
+        maps.uvi.is_none()
+            || Utc::now()
+                .signed_duration_since(maps.uvi_stamp)
+                .num_seconds()
+                > UVI_INTERVAL
     }
 
-    fn set_pollen(&self, pollen: Option<DynamicImage>) {
-        if pollen.is_some() || self.is_pollen_stale() {
+    fn set_pollen(&self, result: Option<(DynamicImage, DateTime<Utc>)>) {
+        if result.is_some() || self.is_pollen_stale() {
             let mut maps = self.lock().expect("Maps handle mutex was poisoned");
-            maps.pollen = pollen;
-            maps.pollen_stamp = Instant::now();
+
+            if let Some((pollen, pollen_stamp)) = result {
+                maps.pollen = Some(pollen);
+                maps.pollen_stamp = pollen_stamp
+            } else {
+                maps.pollen = None
+            }
         }
     }
 
-    fn set_uvi(&self, uvi: Option<DynamicImage>) {
-        if uvi.is_some() || self.is_uvi_stale() {
+    fn set_uvi(&self, result: Option<(DynamicImage, DateTime<Utc>)>) {
+        if result.is_some() || self.is_uvi_stale() {
             let mut maps = self.lock().expect("Maps handle mutex was poisoned");
-            maps.uvi = uvi;
-            maps.uvi_stamp = Instant::now();
+
+            if let Some((uvi, uvi_stamp)) = result {
+                maps.uvi = Some(uvi);
+                maps.uvi_stamp = uvi_stamp
+            } else {
+                maps.uvi = None
+            }
         }
     }
 }
@@ -313,7 +345,8 @@ fn map_key_histogram() -> MapKeyHistogram {
 /// Returns [`None`] if it encounters no known colors in any of the samples.
 fn sample<I: GenericImageView<Pixel = Rgba<u8>>>(
     maps: &I,
-    interval: u64,
+    stamp: DateTime<Utc>,
+    interval: i64,
     count: u32,
     coords: (u32, u32),
 ) -> Option<Vec<Sample>> {
@@ -323,7 +356,7 @@ fn sample<I: GenericImageView<Pixel = Rgba<u8>>>(
     let max_sample_width = (width - x).min(MAP_SAMPLE_SIZE[0]);
     let max_sample_height = (height - y).min(MAP_SAMPLE_SIZE[1]);
     let mut samples = Vec::with_capacity(count as usize);
-    let mut time = Utc::now(); // TODO: Should be the timestamp of the map!
+    let mut time = stamp;
     let mut offset = 0;
 
     while offset < maps.width() {
@@ -363,25 +396,36 @@ fn sample<I: GenericImageView<Pixel = Rgba<u8>>>(
 
 /// Retrieves an image from the provided URL.
 ///
-/// This returns [`None`] if it fails in either performing the request, retrieving the bytes from
-/// the image or loading and the decoding the data into [`DynamicImage`].
-async fn retrieve_image(url: Url) -> Option<DynamicImage> {
+/// This returns [`None`] if it fails in either performing the request, parsing the `Last-Modified`
+/// reponse HTTP header, retrieving the bytes from the image or loading and the decoding the data
+/// into [`DynamicImage`].
+async fn retrieve_image(url: Url) -> Option<(DynamicImage, DateTime<Utc>)> {
     // TODO: Handle or log errors!
     let response = reqwest::get(url).await.ok()?;
+    let mtime = response
+        .headers()
+        .get(reqwest::header::LAST_MODIFIED)
+        .and_then(|dt| dt.to_str().ok())
+        .map(chrono::DateTime::parse_from_rfc2822)?
+        .map(DateTime::<Utc>::from)
+        .ok()?;
     let bytes = response.bytes().await.ok()?;
 
     tokio::task::spawn_blocking(move || {
-        image::load_from_memory_with_format(&bytes, ImageFormat::Png)
+        if let Ok(image) = image::load_from_memory_with_format(&bytes, ImageFormat::Png) {
+            Some((image, mtime))
+        } else {
+            None
+        }
     })
     .await
     .ok()?
-    .ok()
 }
 
 /// Retrieves the pollen maps from Buienradar.
 ///
 /// See [`POLLEN_BASE_URL`] for the base URL and [`retrieve_image`] for the retrieval function.
-async fn retrieve_pollen_maps() -> Option<DynamicImage> {
+async fn retrieve_pollen_maps() -> Option<(DynamicImage, DateTime<Utc>)> {
     let timestamp = format!("{}", chrono::Local::now().format("%y%m%d%H%M"));
     let mut url = Url::parse(POLLEN_BASE_URL).unwrap();
     url.query_pairs_mut().append_pair("timestamp", &timestamp);
@@ -393,7 +437,7 @@ async fn retrieve_pollen_maps() -> Option<DynamicImage> {
 /// Retrieves the UV index maps from Buienradar.
 ///
 /// See [`UVI_BASE_URL`] for the base URL and [`retrieve_image`] for the retrieval function.
-async fn retrieve_uvi_maps() -> Option<DynamicImage> {
+async fn retrieve_uvi_maps() -> Option<(DynamicImage, DateTime<Utc>)> {
     let timestamp = format!("{}", chrono::Local::now().format("%y%m%d%H%M"));
     let mut url = Url::parse(UVI_BASE_URL).unwrap();
     url.query_pairs_mut().append_pair("timestamp", &timestamp);
@@ -444,13 +488,13 @@ pub(crate) async fn run(maps_handle: MapsHandle) -> ! {
         println!("🕔 Refreshing the maps (if necessary)...");
 
         if maps_handle.needs_pollen_refresh() {
-            let pollen = retrieve_pollen_maps().await;
-            maps_handle.set_pollen(pollen);
+            let result = retrieve_pollen_maps().await;
+            maps_handle.set_pollen(result);
         }
 
         if maps_handle.needs_uvi_refresh() {
-            let uvi = retrieve_uvi_maps().await;
-            maps_handle.set_uvi(uvi);
+            let result = retrieve_uvi_maps().await;
+            maps_handle.set_uvi(result);
         }
 
         sleep(REFRESH_INTERVAL).await;
