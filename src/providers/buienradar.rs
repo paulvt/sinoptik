@@ -6,7 +6,7 @@
 use cached::proc_macro::cached;
 use chrono::offset::TimeZone;
 use chrono::serde::ts_seconds;
-use chrono::{DateTime, Local, NaiveTime, ParseError, Utc};
+use chrono::{DateTime, Datelike, Duration, NaiveTime, ParseError, Utc};
 use chrono_tz::Europe;
 use csv::ReaderBuilder;
 use reqwest::Url;
@@ -65,13 +65,13 @@ impl TryFrom<Row> for Item {
 /// The provided time has the format `HH:MM` and is considered to be in the Europe/Amsterdam
 /// time zone.
 fn parse_time(t: &str) -> Result<DateTime<Utc>, ParseError> {
-    // First, get the naive time.
+    // First, get the current date in the Europe/Amsterdam time zone.
+    let today = Utc::now().with_timezone(&Europe::Amsterdam).date();
+    // Then, parse the time and interpret it relative to "today".
     let ntime = NaiveTime::parse_from_str(t, "%H:%M")?;
-    // FIXME: This might actually be the day before when started on a machine that
-    //   doesn't run in the Europe/Amsterdam time zone.
-    let ndtime = Local::today().naive_local().and_time(ntime);
-    // Then, interpret the naive date/time in the Europe/Amsterdam time zone and convert it to the
-    // UTC time zone.
+    let ndtime = today.naive_local().and_time(ntime);
+    // Finally, interpret the naive date/time in the Europe/Amsterdam time zone and convert it to
+    // the UTC time zone.
     let ldtime = Europe::Amsterdam.from_local_datetime(&ndtime).unwrap();
     let dtime = ldtime.with_timezone(&Utc);
 
@@ -86,6 +86,44 @@ fn convert_value(v: u16) -> f32 {
     let value = base.powf((v as f32 - 109.0) / 32.0);
 
     (value * 10.0).round() / 10.0
+}
+
+/// Fix the timestamps of the items either before or after the day boundary.
+///
+/// If in the Europe/Amsterdam time zone it is still before 0:00, all timestamps after 0:00 need to
+/// be bumped up with a day. If it is already after 0:00, all timestamps before 0:00 need to be
+/// bumped back with a day.
+// TODO: If something in Sinoptik needs unit tests, it is this!
+fn fix_items_day_boundary(items: Vec<Item>) -> Vec<Item> {
+    let now = Utc::now().with_timezone(&Europe::Amsterdam);
+    // Use noon on the same day as "now" as a comparison moment.
+    let noon = Europe::Amsterdam
+        .ymd(now.year(), now.month(), now.day())
+        .and_hms(12, 0, 0);
+
+    if now < noon {
+        // It is still before noon, so bump timestamps after noon a day back.
+        items
+            .into_iter()
+            .map(|mut item| {
+                if item.time > noon {
+                    item.time = item.time - Duration::days(1)
+                }
+                item
+            })
+            .collect()
+    } else {
+        // It is already after noon, so bump the timestamps before noon a day forward.
+        items
+            .into_iter()
+            .map(|mut item| {
+                if item.time < noon {
+                    item.time = item.time + Duration::days(1)
+                }
+                item
+            })
+            .collect()
+    }
 }
 
 /// Retrieves the Buienradar forecasted precipitation items for the provided position.
@@ -111,7 +149,21 @@ async fn get_precipitation(position: Position) -> Option<Vec<Item>> {
         .has_headers(false)
         .delimiter(b'|')
         .from_reader(output.as_bytes());
-    rdr.deserialize().collect::<Result<_, _>>().ok()
+    let items: Vec<Item> = rdr.deserialize().collect::<Result<_, _>>().ok()?;
+
+    // Check if the first item stamp is (timewise) later than the last item stamp.
+    // In this case `parse_time` interpreted e.g. 23:00 and later 0:30 in the same day and some
+    // time stamps need to be fixed.
+    if items
+        .first()
+        .zip(items.last())
+        .map(|(it1, it2)| it1.time > it2.time)
+        == Some(true)
+    {
+        Some(fix_items_day_boundary(items))
+    } else {
+        Some(items)
+    }
 }
 
 /// Retrieves the Buienradar forecasted pollen samples for the provided position.
