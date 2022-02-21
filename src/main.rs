@@ -1,8 +1,4 @@
-//! Service that provides today's weather forecast for air quality, rain and UV metrics.
-//!
-//! This is useful if you want to prepare for going outside and need to know what happens in the
-//! near future or later today.
-
+#![doc = include_str!("../README.md")]
 #![warn(
     clippy::all,
     missing_debug_implementations,

@@ -1,6 +1,9 @@
 [package]
 name = "sinoptik"
+description = "Service that provides an API for today's weather forecast"
 version = "0.1.0"
+readme = "README.md"
+license = "MIT"
 edition = "2021"
 
 [dependencies]
