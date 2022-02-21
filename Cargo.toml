@@ -1,10 +1,15 @@
 [package]
 name = "sinoptik"
-description = "Service that provides an API for today's weather forecast"
 version = "0.1.0"
-readme = "README.md"
-license = "MIT"
+authors = [
+  "Admar Schoonen <admar@luon.net",
+  "Paul van Tilburg <paul@luon.net>"
+]
 edition = "2021"
+description = "Web service that provides an API for today's weather forecast"
+readme = "README.md"
+repository = "https://git.luon.net/paul/sinoptik"
+license = "MIT"
 
 [dependencies]
 cached = { version = "0.30.0", features = ["async"] }
