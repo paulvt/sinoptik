@@ -33,11 +33,11 @@ $ cargo run --release
 add `--release`.)
 
 You can provide Rocket with configuration to use a different address and/or port.
-Just create a `Rocket.toml` file that contains:
+Just create a `Rocket.toml` file that contains (or copy `Rocket.toml.example`):
 
 ```toml
 [default]
-address = 0.0.0.0
+address = "0.0.0.0"
 port = 4321
 ```
 
