@@ -16,3 +16,39 @@ geocoding = "0.3.1"
 image = "0.24.0"
 reqwest = { version = "0.11.9", features = ["json"] }
 rocket = { version = "0.5.0-rc.1", features = ["json"] }
+
+[package.metadata.deb]
+maintainer = "Paul van Tilburg <paul@luon.net>"
+copyright = "2022, Paul van Tilburg"
+depends = "$auto, systemd"
+extended-description = """\
+Sinoptik is a (REST) API service that provides an API for today's weather
+forecast. It can provide you with a specific set or all available metrics that
+it supports.
+
+Currently supported metrics are:
+
+* Air quality index (per hour, from Luchtmeetnet)
+* NO₂ concentration (per hour, from Luchtmeetnet)
+* O₃ concentration (per hour, from Luchtmeetnet)
+* Particulate matter (PM10) concentration (per hour, from Luchtmeetnet)
+* Pollen (per hour, from Buienradar)
+* Pollen/air quality index (per hour, from Buienradar)
+* Precipitation (per 5 minutes, from Buienradar)
+* UV index (per day, from Buienradar)
+
+Because of the currently supported data providers, only data for The
+Netherlands can be queried.
+"""
+section = "net"
+priority = "optional"
+assets = [
+  ["README.md", "usr/share/doc/sinoptik/", "664"],
+  ["Rocket.toml.example", "/etc/sinoptik.toml", "644"],
+  ["target/release/sinoptik", "usr/sbin/sinoptik", "755"]
+]
+conf-files = [
+  "/etc/sinoptik.toml"
+]
+maintainer-scripts = "debian/"
+systemd-units = { unit-name = "sinoptik" }
