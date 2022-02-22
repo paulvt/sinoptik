@@ -9,7 +9,6 @@
 
 use std::sync::{Arc, Mutex};
 
-use chrono::Utc;
 use color_eyre::Result;
 use rocket::http::ContentType;
 use rocket::response::content::Custom;
@@ -19,7 +18,7 @@ use rocket::{get, routes, State};
 
 pub(crate) use self::forecast::Metric;
 use self::forecast::{forecast, Forecast};
-pub(crate) use self::maps::{Maps, MapsHandle};
+pub(crate) use self::maps::{mark_map, Maps, MapsHandle};
 use self::position::{resolve_address, Position};
 
 pub(crate) mod forecast;
@@ -59,13 +58,13 @@ async fn forecast_geo(
 ///
 /// Note: This handler is mosly used for debugging purposes!
 #[get("/map?<address>&<metric>")]
-async fn show_map_address(
+async fn map_address(
     address: String,
     metric: Metric,
     maps_handle: &State<MapsHandle>,
 ) -> Option<Custom<Vec<u8>>> {
     let position = resolve_address(address).await?;
-    let image_data = draw_position(position, metric, maps_handle).await;
+    let image_data = mark_map(position, metric, maps_handle).await;
 
     image_data.map(|id| Custom(ContentType::PNG, id))
 }
@@ -74,66 +73,16 @@ async fn show_map_address(
 ///
 /// Note: This handler is mosly used for debugging purposes!
 #[get("/map?<lat>&<lon>&<metric>", rank = 2)]
-async fn show_map_geo(
+async fn map_geo(
     lat: f64,
     lon: f64,
     metric: Metric,
     maps_handle: &State<MapsHandle>,
 ) -> Option<Custom<Vec<u8>>> {
     let position = Position::new(lat, lon);
-    let image_data = draw_position(position, metric, maps_handle).await;
+    let image_data = mark_map(position, metric, maps_handle).await;
 
     image_data.map(|id| Custom(ContentType::PNG, id))
-}
-
-/// Draws a crosshair on a map for the given position.
-///
-/// The map that is used is determined by the metric.
-// FIXME: Maybe move this to the `maps` module?
-async fn draw_position(
-    position: Position,
-    metric: Metric,
-    maps_handle: &MapsHandle,
-) -> Option<Vec<u8>> {
-    use image::{GenericImage, Rgba};
-    use std::io::Cursor;
-
-    let maps_handle = Arc::clone(maps_handle);
-    tokio::task::spawn_blocking(move || {
-        let now = Utc::now();
-        let maps = maps_handle.lock().expect("Maps handle lock was poisoned");
-        let (mut image, coords) = match metric {
-            Metric::PAQI => (maps.pollen_at(now)?, maps.pollen_project(position)),
-            Metric::Pollen => (maps.pollen_at(now)?, maps.pollen_project(position)),
-            Metric::UVI => (maps.uvi_at(now)?, maps.uvi_project(position)),
-            _ => return None, // Unsupported metric
-        };
-        drop(maps);
-
-        if let Some((x, y)) = coords {
-            for py in 0..(image.height() - 1) {
-                image.put_pixel(x, py, Rgba::from([0x00, 0x00, 0x00, 0x70]));
-            }
-
-            for px in 0..(image.width() - 1) {
-                image.put_pixel(px, y, Rgba::from([0x00, 0x00, 0x00, 0x70]));
-            }
-        }
-
-        // Encode the image as PNG image data.
-        let mut image_data = Cursor::new(Vec::new());
-        image
-            .write_to(
-                &mut image_data,
-                image::ImageOutputFormat::from(image::ImageFormat::Png),
-            )
-            .ok()?;
-
-        Some(image_data.into_inner())
-    })
-    .await
-    .ok()
-    .flatten()
 }
 
 /// Starts the main maps refresh loop and sets up and launches Rocket.
@@ -151,12 +100,7 @@ async fn main() -> Result<()> {
         .manage(maps_handle)
         .mount(
             "/",
-            routes![
-                forecast_address,
-                forecast_geo,
-                show_map_address,
-                show_map_geo
-            ],
+            routes![forecast_address, forecast_geo, map_address, map_geo],
         )
         .ignite()
         .await?;

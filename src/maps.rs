@@ -9,12 +9,13 @@ use std::sync::{Arc, Mutex};
 
 use chrono::serde::ts_seconds;
 use chrono::{DateTime, Duration, Utc};
-use image::{DynamicImage, GenericImageView, ImageFormat, Pixel, Rgb, Rgba};
+use image::{DynamicImage, GenericImage, GenericImageView, ImageFormat, Pixel, Rgb, Rgba};
 use reqwest::Url;
 use rocket::serde::Serialize;
 use rocket::tokio;
 use rocket::tokio::time::sleep;
 
+use crate::forecast::Metric;
 use crate::position::Position;
 
 /// A handle to access the in-memory cached maps.
@@ -149,33 +150,22 @@ impl Maps {
         }
     }
 
-    /// Returns the pollen map for the given instant.
+    /// Returns a current pollen map that marks the provided position.
     ///
-    /// This returns [`None`] if the maps are not in the cache yet, or if `instant` is too far in the
-    /// future with respect to the cached maps.
-    pub(crate) fn pollen_at(&self, instant: DateTime<Utc>) -> Option<DynamicImage> {
-        let duration = instant.signed_duration_since(self.pollen_stamp);
-        let offset = (duration.num_seconds() / POLLEN_MAP_INTERVAL) as u32;
-        // Check if out of bounds.
-        if offset >= POLLEN_MAP_COUNT {
-            return None;
-        }
-
-        self.pollen.as_ref().map(|maps| {
-            let width = maps.width() / POLLEN_MAP_COUNT;
-
-            maps.crop_imm(offset * width, 0, width, maps.height())
-        })
-    }
-
-    /// Projects the provided geocoded position to a coordinate on a pollen map.
-    ///
-    /// This returns [`None`] if the maps are not in the cache yet.
-    pub(crate) fn pollen_project(&self, position: Position) -> Option<(u32, u32)> {
+    /// This returns [`None`] if the maps are not in the cache yet, there is no matching map for
+    /// the current moment or if the provided position is not within the bounds of the map.
+    pub(crate) fn pollen_mark(&self, position: Position) -> Option<DynamicImage> {
         self.pollen.as_ref().and_then(|maps| {
-            let map = maps.view(0, 0, maps.width() / POLLEN_MAP_COUNT, maps.height());
+            let map = map_at(
+                maps,
+                self.pollen_stamp,
+                POLLEN_MAP_INTERVAL,
+                POLLEN_MAP_COUNT,
+                Utc::now(),
+            )?;
+            let coords = project(&map, POLLEN_MAP_REF_POINTS, position)?;
 
-            project(&*map, POLLEN_MAP_REF_POINTS, position)
+            Some(mark(map, coords))
         })
     }
 
@@ -184,9 +174,10 @@ impl Maps {
     /// This returns [`None`] if the maps are not in the cache yet.
     /// Otherwise, it returns [`Some`] with a list of pollen sample, one for each map
     /// in the series of maps.
-    pub(crate) fn pollen_sample(&self, position: Position) -> Option<Vec<Sample>> {
+    pub(crate) fn pollen_samples(&self, position: Position) -> Option<Vec<Sample>> {
         self.pollen.as_ref().and_then(|maps| {
-            let coords = self.pollen_project(position)?;
+            let map = maps.view(0, 0, maps.width() / UVI_MAP_COUNT, maps.height());
+            let coords = project(&*map, POLLEN_MAP_REF_POINTS, position)?;
 
             sample(
                 maps,
@@ -198,33 +189,22 @@ impl Maps {
         })
     }
 
-    /// Returns the UV index map for the given instant.
+    /// Returns a current UV index map that marks the provided position.
     ///
-    /// This returns [`None`] if the maps are not in the cache yet, or if `instant` is too far in
-    /// the future with respect to the cached maps.
-    pub(crate) fn uvi_at(&self, instant: DateTime<Utc>) -> Option<DynamicImage> {
-        let duration = instant.signed_duration_since(self.uvi_stamp);
-        let offset = (duration.num_seconds() / UVI_MAP_INTERVAL) as u32;
-        // Check if out of bounds.
-        if offset >= UVI_MAP_COUNT {
-            return None;
-        }
-
-        self.uvi.as_ref().map(|maps| {
-            let width = maps.width() / UVI_MAP_COUNT;
-
-            maps.crop_imm(offset * width, 0, width, maps.height())
-        })
-    }
-
-    /// Projects the provided geocoded position to a coordinate on an UV index map.
-    ///
-    /// This returns [`None`] if the maps are not in the cache yet.
-    pub(crate) fn uvi_project(&self, position: Position) -> Option<(u32, u32)> {
+    /// This returns [`None`] if the maps are not in the cache yet, there is no matching map for
+    /// the current moment or if the provided position is not within the bounds of the map.
+    pub(crate) fn uvi_mark(&self, position: Position) -> Option<DynamicImage> {
         self.uvi.as_ref().and_then(|maps| {
-            let map = maps.view(0, 0, maps.width() / UVI_MAP_COUNT, maps.height());
+            let map = map_at(
+                maps,
+                self.uvi_stamp,
+                UVI_MAP_INTERVAL,
+                UVI_MAP_COUNT,
+                Utc::now(),
+            )?;
+            let coords = project(&map, POLLEN_MAP_REF_POINTS, position)?;
 
-            project(&*map, UVI_MAP_REF_POINTS, position)
+            Some(mark(map, coords))
         })
     }
 
@@ -233,10 +213,10 @@ impl Maps {
     /// This returns [`None`] if the maps are not in the cache yet.
     /// Otherwise, it returns [`Some`] with a list of UV index sample, one for each map
     /// in the series of maps.
-    #[allow(dead_code)]
-    pub(crate) fn uvi_sample(&self, position: Position) -> Option<Vec<Sample>> {
+    pub(crate) fn uvi_samples(&self, position: Position) -> Option<Vec<Sample>> {
         self.uvi.as_ref().and_then(|maps| {
-            let coords = self.uvi_project(position)?;
+            let map = maps.view(0, 0, maps.width() / UVI_MAP_COUNT, maps.height());
+            let coords = project(&*map, UVI_MAP_REF_POINTS, position)?;
 
             sample(
                 maps,
@@ -446,6 +426,42 @@ async fn retrieve_uvi_maps() -> Option<(DynamicImage, DateTime<Utc>)> {
     retrieve_image(url).await
 }
 
+/// Returns the map for the given instant.
+///
+/// This returns [`None`] if `instant` is too far in the future with respect to the number of
+/// cached maps.
+fn map_at(
+    maps: &DynamicImage,
+    maps_stamp: DateTime<Utc>,
+    interval: i64,
+    count: u32,
+    instant: DateTime<Utc>,
+) -> Option<DynamicImage> {
+    let duration = instant.signed_duration_since(maps_stamp);
+    let offset = (duration.num_seconds() / interval) as u32;
+    // Check if out of bounds.
+    if offset >= UVI_MAP_COUNT {
+        return None;
+    }
+    let width = maps.width() / count;
+
+    Some(maps.crop_imm(offset * width, 0, width, maps.height()))
+}
+
+/// Marks the provided coordinates on the map using a horizontal and vertical line.
+fn mark(mut map: DynamicImage, coords: (u32, u32)) -> DynamicImage {
+    let (x, y) = coords;
+
+    for py in 0..map.height() {
+        map.put_pixel(x, py, Rgba::from([0x00, 0x00, 0x00, 0x70]));
+    }
+    for px in 0..map.width() {
+        map.put_pixel(px, y, Rgba::from([0x00, 0x00, 0x00, 0x70]));
+    }
+
+    map
+}
+
 /// Projects the provided geocoded position to a coordinate on a map.
 ///
 /// This uses two reference points and a Mercator projection on the y-coordinates of those points
@@ -477,6 +493,43 @@ fn project<I: GenericImageView>(
     } else {
         None
     }
+}
+
+/// Returns the data of a map with a crosshair drawn on it for the given position.
+///
+/// The map that is used is determined by the provided metric.
+pub(crate) async fn mark_map(
+    position: Position,
+    metric: Metric,
+    maps_handle: &MapsHandle,
+) -> Option<Vec<u8>> {
+    use std::io::Cursor;
+
+    let maps_handle = Arc::clone(maps_handle);
+    tokio::task::spawn_blocking(move || {
+        let maps = maps_handle.lock().expect("Maps handle lock was poisoned");
+        let image = match metric {
+            Metric::PAQI => maps.pollen_mark(position),
+            Metric::Pollen => maps.pollen_mark(position),
+            Metric::UVI => maps.uvi_mark(position),
+            _ => return None, // Unsupported metric
+        }?;
+        drop(maps);
+
+        // Encode the image as PNG image data.
+        let mut image_data = Cursor::new(Vec::new());
+        image
+            .write_to(
+                &mut image_data,
+                image::ImageOutputFormat::from(image::ImageFormat::Png),
+            )
+            .ok()?;
+
+        Some(image_data.into_inner())
+    })
+    .await
+    .ok()
+    .flatten()
 }
 
 /// Runs a loop that keeps refreshing the maps when necessary.

@@ -181,7 +181,7 @@ async fn get_pollen(position: Position, maps_handle: &MapsHandle) -> Option<Vec<
     maps_handle
         .lock()
         .expect("Maps handle mutex was poisoned")
-        .pollen_sample(position)
+        .pollen_samples(position)
 }
 
 /// Retrieves the Buienradar forecasted UV index samples for the provided position.
@@ -199,7 +199,7 @@ async fn get_uvi(position: Position, maps_handle: &MapsHandle) -> Option<Vec<Sam
     maps_handle
         .lock()
         .expect("Maps handle mutex was poisoned")
-        .uvi_sample(position)
+        .uvi_samples(position)
 }
 
 /// Retrieves the Buienradar forecasted map samples for the provided position.
