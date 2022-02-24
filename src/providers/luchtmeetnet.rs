@@ -4,7 +4,7 @@
 
 use cached::proc_macro::cached;
 use chrono::serde::ts_seconds;
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, Duration, Utc};
 use reqwest::Url;
 use rocket::serde::{Deserialize, Serialize};
 
@@ -75,5 +75,13 @@ pub(crate) async fn get(position: Position, metric: Metric) -> Option<Vec<Item>>
         Err(_err) => return None,
     };
 
-    Some(root.data)
+    // Filter items that are older than one hour before now. They seem to occur sometimes?
+    let too_old = Utc::now() - Duration::hours(1);
+    let items = root
+        .data
+        .into_iter()
+        .filter(|item| item.time > too_old)
+        .collect();
+
+    Some(items)
 }
