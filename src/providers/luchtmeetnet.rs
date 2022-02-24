@@ -32,12 +32,12 @@ pub(crate) struct Item {
         rename(deserialize = "timestamp_measured"),
         serialize_with = "ts_seconds::serialize"
     )]
-    time: DateTime<Utc>,
+    pub(crate) time: DateTime<Utc>,
 
     /// The forecasted value.
     ///
     /// The unit depends on the selected [metric](Metric).
-    value: f32,
+    pub(crate) value: f32,
 }
 
 /// Retrieves the Luchtmeetnet forecasted items for the provided position and metric.

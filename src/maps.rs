@@ -299,13 +299,13 @@ impl MapsRefresh for MapsHandle {
 pub(crate) struct Sample {
     /// The time(stamp) of the forecast.
     #[serde(serialize_with = "ts_seconds::serialize")]
-    time: DateTime<Utc>,
+    pub(crate) time: DateTime<Utc>,
 
     /// The forecasted score.
     ///
     /// A value in the range `1..=10`.
     #[serde(rename(serialize = "value"))]
-    score: u8,
+    pub(crate) score: u8,
 }
 
 /// Builds a scoring histogram for the map key.

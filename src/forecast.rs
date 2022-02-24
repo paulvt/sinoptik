@@ -9,6 +9,7 @@ use crate::maps::MapsHandle;
 use crate::position::Position;
 use crate::providers;
 use crate::providers::buienradar::{Item as BuienradarItem, Sample as BuienradarSample};
+use crate::providers::combined::Item as CombinedItem;
 use crate::providers::luchtmeetnet::Item as LuchtmeetnetItem;
 
 /// The current forecast for a specific location.
@@ -42,7 +43,7 @@ pub(crate) struct Forecast {
 
     /// The combination of pollen + air quality index (when asked for).
     #[serde(rename = "PAQI", skip_serializing_if = "Option::is_none")]
-    paqi: Option<()>,
+    paqi: Option<Vec<CombinedItem>>,
 
     /// The particulate matter in the air (when asked for).
     #[serde(rename = "PM10", skip_serializing_if = "Option::is_none")]
@@ -134,7 +135,9 @@ pub(crate) async fn forecast(
             Metric::AQI => forecast.aqi = providers::luchtmeetnet::get(position, metric).await,
             Metric::NO2 => forecast.no2 = providers::luchtmeetnet::get(position, metric).await,
             Metric::O3 => forecast.o3 = providers::luchtmeetnet::get(position, metric).await,
-            Metric::PAQI => forecast.paqi = Some(()),
+            Metric::PAQI => {
+                forecast.paqi = providers::combined::get(position, metric, maps_handle).await
+            }
             Metric::PM10 => forecast.pm10 = providers::luchtmeetnet::get(position, metric).await,
             Metric::Pollen => {
                 forecast.pollen =

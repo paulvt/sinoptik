@@ -41,12 +41,12 @@ struct Row {
 pub(crate) struct Item {
     /// The time(stamp) of the forecast.
     #[serde(serialize_with = "ts_seconds::serialize")]
-    time: DateTime<Utc>,
+    pub(crate) time: DateTime<Utc>,
 
     /// The forecasted value.
     ///
     /// Its unit is mm/h.
-    value: f32,
+    pub(crate) value: f32,
 }
 
 impl TryFrom<Row> for Item {
