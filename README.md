@@ -43,7 +43,7 @@ port = 4321
 
 ## Forecast API
 
-The `/forcast` endpoint provides forecasts per requested metric a list of
+The `/forecast` endpoint provides forecasts per requested metric a list of
 forecast item which are each comprised of a value and its (UNIX) timestamp.
 It does so for a requested location.
 
@@ -76,6 +76,53 @@ Note that the parameter "array" as well as the repeated parameter notations are 
 GET /address=Stationsplein,Utrecht&metrics[]=AQI&metrics[]=pollen
 GET /address=Stationsplein,Utrecht&metrics=AQI&metrics=pollen
 GET /address=Stationsplein,Utrecht&metrics=all
+```
+
+### Response
+
+The response of the API is a JSON object that contains three fixed fields:
+
+* `lat`: the latitude of the geocoded position the forecast is for (number)
+* `lon`: the longitude of the geocoded position the forecast is for (number)
+* `time`: the (UNIX) timestamp of the forecast, basically "now" (number)
+
+Then, it contains a field per requested metric with a list of forecast items
+with two fixed fields as value:
+
+* `time`: the (UNIX) timestamp for that forecasted value (number)
+* `value`: the forecasted value for the metric (number)
+
+An example when requesting just UVI (because it's short) for some random
+position:
+
+```json
+{
+  "lat": 34.567890,
+  "lon": 1.234567,
+  "time": 1645800043,
+  "UVI": [
+    {
+      "time": 1645799526,
+      "value": 1
+    },
+    {
+      "time": 1645885926,
+      "value": 2
+    },
+    {
+      "time": 1645972326,
+      "value": 3
+    },
+    {
+      "time": 1646058726,
+      "value": 2
+    },
+    {
+      "time": 1646145126,
+      "value": 1
+    }
+  ]
+}
 ```
 
 ## License
