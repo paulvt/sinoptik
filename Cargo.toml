@@ -12,13 +12,13 @@ repository = "https://git.luon.net/paul/sinoptik"
 license = "MIT"
 
 [dependencies]
-cached = { version = "0.30.0", features = ["async"] }
+cached = { version = "0.31.0", features = ["async"] }
 chrono = "0.4.19"
 chrono-tz = "0.6.1"
 color-eyre = "0.5.6"
 csv = "1.1.6"
 geocoding = "0.3.1"
-image = "0.24.0"
+image = "0.24.1"
 reqwest = { version = "0.11.9", features = ["json"] }
 rocket = { version = "0.5.0-rc.1", features = ["json"] }
 
