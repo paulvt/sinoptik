@@ -440,7 +440,7 @@ fn map_at(
     let duration = instant.signed_duration_since(maps_stamp);
     let offset = (duration.num_seconds() / interval) as u32;
     // Check if out of bounds.
-    if offset >= UVI_MAP_COUNT {
+    if offset >= count {
         return None;
     }
     let width = maps.width() / count;
