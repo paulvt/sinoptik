@@ -27,10 +27,14 @@ Using Cargo, it is easy to build and run Sinoptik, just run:
 
 ```shell
 $ cargo run --release
+...
+   Compiling sinoptik v0.1.0 (/path/to/sinoptik)
+    Finished release [optimized] target(s) in 9m 26s
+     Running `/path/to/sinoptik/target/release/sinoptik`
 ```
 
-(Note that Rocket listens on 127.0.0.1:3000 by default for debug builds, i.e. if you don't
-add `--release`.)
+(Note that Rocket listens on `127.0.0.1:3000` by default for debug builds, i.e.
+builds when you don't add `--release`.)
 
 You can provide Rocket with configuration to use a different address and/or port.
 Just create a `Rocket.toml` file that contains (or copy `Rocket.toml.example`):
@@ -38,8 +42,11 @@ Just create a `Rocket.toml` file that contains (or copy `Rocket.toml.example`):
 ```toml
 [default]
 address = "0.0.0.0"
-port = 4321
+port = 2356
 ```
+
+This will work independent of the type of build. For more about Rocket's
+configuration, see: <https://rocket.rs/v0.5-rc/guide/configuration/>.
 
 ## Forecast API endpoint
 
@@ -70,8 +77,8 @@ GET /forecast?lat=52.0902&lon=5.1114&metrics[]=all
 When querying, the metrics need to be selected. It can be one of: `AQI`, `NO2`,
 `O3`, `PAQI`, `PM10`, `pollen`, `precipitation` or `UVI`. If you use metric `all`, or
 `all` is part of the selected metrics, all metrics will be retrieved.
-Note that the parameter "array" as well as the repeated parameter notations are
-supported. For example:
+Note that the parameter "array" notation as well as the repeated parameter
+notation are supported. For example:
 
 ```
 GET /forecast?address=Stationsplein,Utrecht&metrics[]=AQI&metrics[]=pollen
@@ -138,6 +145,12 @@ Utrecht, use:
 
 ```
 GET /map?address=Stationsplein,Utrecht&metric=pollen
+```
+
+or directly by using its geocoded position:
+
+```
+GET /map?lat=52.0902&lon=5.1114&metric=pollen
 ```
 
 ### Response
