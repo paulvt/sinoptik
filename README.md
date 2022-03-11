@@ -51,7 +51,7 @@ does so for a requested location.
 
 To select a location, you can either provide an address, or a geocoded position
 by providing a latitude and longitude.
-For example to get forecasts for all metrics for the Stationsplein in Utrecht,
+For example, to get forecasts for all metrics for the Stationsplein in Utrecht,
 use:
 
 ```
@@ -70,7 +70,8 @@ GET /forecast?lat=52.0902&lon=5.1114&metrics[]=all
 When querying, the metrics need to be selected. It can be one of: `AQI`, `NO2`,
 `O3`, `PAQI`, `PM10`, `pollen`, `precipitation` or `UVI`. If you use metric `all`, or
 `all` is part of the selected metrics, all metrics will be retrieved.
-Note that the parameter "array" as well as the repeated parameter notations are supported. For example:
+Note that the parameter "array" as well as the repeated parameter notations are
+supported. For example:
 
 ```
 GET /forecast?address=Stationsplein,Utrecht&metrics[]=AQI&metrics[]=pollen
@@ -124,6 +125,26 @@ position:
   ]
 }
 ```
+
+## Map API endpoint
+
+The `/map` API endpoint basically only exists for debugging purposes. Given an
+address or geocoded position, it shows the current map for the provided metric
+and draws a crosshair on the position.
+Currently, only the `PAQI`, `pollen` and `UVI` metrics are backed by a map.
+
+For example, to get the current pollen map with a crosshair on Stationsplein in
+Utrecht, use:
+
+```
+GET /map?address=Stationsplein,Utrecht&metric=pollen
+```
+
+### Response
+
+The response is a PNG image with a crosshair drawn on the map. If geocoding of
+an address fails or if the position is out of bounds of the map, nothing is
+returned (HTTP 404).
 
 ## License
 
