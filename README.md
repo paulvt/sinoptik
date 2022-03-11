@@ -41,11 +41,11 @@ address = "0.0.0.0"
 port = 4321
 ```
 
-## Forecast API
+## Forecast API endpoint
 
-The `/forecast` endpoint provides forecasts per requested metric a list of
-forecast item which are each comprised of a value and its (UNIX) timestamp.
-It does so for a requested location.
+The `/forecast` API endpoint provides forecasts per requested metric a list of
+forecast item which are each comprised of a value and its (UNIX) timestamp. It
+does so for a requested location.
 
 ### Locations
 
@@ -73,9 +73,9 @@ When querying, the metrics need to be selected. It can be one of: `AQI`, `NO2`,
 Note that the parameter "array" as well as the repeated parameter notations are supported. For example:
 
 ```
-GET /address=Stationsplein,Utrecht&metrics[]=AQI&metrics[]=pollen
-GET /address=Stationsplein,Utrecht&metrics=AQI&metrics=pollen
-GET /address=Stationsplein,Utrecht&metrics=all
+GET /forecast?address=Stationsplein,Utrecht&metrics[]=AQI&metrics[]=pollen
+GET /forecast?address=Stationsplein,Utrecht&metrics=AQI&metrics=pollen
+GET /forecast?address=Stationsplein,Utrecht&metrics=all
 ```
 
 ### Response
