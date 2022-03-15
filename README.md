@@ -61,14 +61,14 @@ by providing a latitude and longitude.
 For example, to get forecasts for all metrics for the Stationsplein in Utrecht,
 use:
 
-```
+```http
 GET /forecast?address=Stationsplein,Utrecht&metrics[]=all
 ```
 
 or directly by using its geocoded position:
 
 
-```
+```http
 GET /forecast?lat=52.0902&lon=5.1114&metrics[]=all
 ```
 
@@ -80,7 +80,7 @@ When querying, the metrics need to be selected. It can be one of: `AQI`, `NO2`,
 Note that the parameter "array" notation as well as the repeated parameter
 notation are supported. For example:
 
-```
+```http
 GET /forecast?address=Stationsplein,Utrecht&metrics[]=AQI&metrics[]=pollen
 GET /forecast?address=Stationsplein,Utrecht&metrics=AQI&metrics=pollen
 GET /forecast?address=Stationsplein,Utrecht&metrics=all
@@ -143,13 +143,13 @@ Currently, only the `PAQI`, `pollen` and `UVI` metrics are backed by a map.
 For example, to get the current pollen map with a crosshair on Stationsplein in
 Utrecht, use:
 
-```
+```http
 GET /map?address=Stationsplein,Utrecht&metric=pollen
 ```
 
 or directly by using its geocoded position:
 
-```
+```http
 GET /map?lat=52.0902&lon=5.1114&metric=pollen
 ```
 

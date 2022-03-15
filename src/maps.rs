@@ -536,7 +536,7 @@ pub(crate) async fn mark_map(
 ///
 /// Use [`MapsRefresh`] trait methods on `maps_handle` to check whether each maps type needs to be
 /// refreshed and uses its retrieval function to update it if necessary.
-pub(crate) async fn run(maps_handle: MapsHandle) -> ! {
+pub(crate) async fn run(maps_handle: MapsHandle) {
     loop {
         println!("🕔 Refreshing the maps (if necessary)...");
 
