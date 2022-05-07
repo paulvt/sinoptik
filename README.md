@@ -105,8 +105,8 @@ position:
 
 ```json
 {
-  "lat": 34.567890,
-  "lon": 1.234567,
+  "lat": 52.0905169,
+  "lon": 5.1109709,
   "time": 1645800043,
   "UVI": [
     {
@@ -130,6 +130,41 @@ position:
       "value": 1
     }
   ]
+}
+```
+
+#### Combined metric PAQI
+
+The PAQI (pollen/air quality index) metric is a special combined metric.
+If selected, it not only merges items from the AQI and pollen metric into
+`PAQI` by selecting the maximum value for each hour, but it also yields the
+24-hour maximum forecast item for air quality index in `AQI_max` and for
+pollen in `pollen_max` seperately:
+
+``` json
+{
+  "lat": 52.0905169,
+  "lon": 5.1109709,
+  "time": 1645800043,
+  "AQI_max": {
+    "time": 1652022000,
+    "value": 6.65
+  },
+  "PAQI": [
+    {
+      "time": 1651951457,
+      "value": 6.04
+    },
+    {
+      "time": 1651955057,
+      "value": 6.04
+    },
+    ...
+  ],
+  "pollen_max": {
+    "time": 1652034257,
+    "value": 6
+  }
 }
 ```
 

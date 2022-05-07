@@ -27,16 +27,23 @@ pub(crate) struct Item {
 
 /// Merges pollen samples and AQI items into combined items.
 ///
-/// This drops items from either the pollen samples or from the AQI items if they are not stamped
-/// with half an hour of the first item of the latest stating series, thus lining them before they
-/// are combined.
+/// The merging drops items from either the pollen samples or from the AQI items if they are not
+/// stamped with half an hour of the first item of the latest starting series, thus lining them
+/// before they are combined.
 ///
-/// Returns [`None`] if there are no pollen samples, if  there are no AQI items, or if
-/// lining them up fails.
+/// This function also finds the maximum pollen sample and AQI item.
+///
+/// Returns [`None`] if there are no pollen samples, if there are no AQI items, or if
+/// lining them up fails. Returns [`None`] for the maximum pollen sample or maximum AQI item
+/// if there are no samples or items.
 fn merge(
     pollen_samples: Vec<BuienradarSample>,
     aqi_items: Vec<LuchtmeetnetItem>,
-) -> Option<Vec<Item>> {
+) -> Option<(
+    Vec<Item>,
+    Option<BuienradarSample>,
+    Option<LuchtmeetnetItem>,
+)> {
     let mut pollen_samples = pollen_samples;
     let mut aqi_items = aqi_items;
 
@@ -65,6 +72,16 @@ fn merge(
         aqi_items.drain(..idx);
     }
 
+    // Find the maximum sample/item of each series.
+    let pollen_max = pollen_samples
+        .iter()
+        .max_by_key(|sample| sample.score)
+        .cloned();
+    let aqi_max = aqi_items
+        .iter()
+        .max_by_key(|item| (item.value * 1_000.0) as u32)
+        .cloned();
+
     // Combine the samples with items by taking the maximum of pollen sample score and AQI item
     // value.
     let items = pollen_samples
@@ -78,18 +95,23 @@ fn merge(
         })
         .collect();
 
-    Some(items)
+    Some((items, pollen_max, aqi_max))
 }
 
 /// Retrieves the combined forecasted items for the provided position and metric.
 ///
+/// Besides the combined items, it also yields the maxium pollen sample and AQI item.
+/// Note that the maximum values are calculated before combining them, so the time stamp
+/// corresponds to the one in the original series, not to a timestamp of an item after merging.
+///
 /// It supports the following metric:
 /// * [`Metric::PAQI`]
 ///
-/// Returns [`None`] if retrieving data from either the Buienradar or the Luchtmeetnet provider
-/// fails or if they cannot be combined.
+/// Returns [`None`] for the combined items if retrieving data from either the Buienradar or the
+/// Luchtmeetnet provider fails or if they cannot be combined. Returns [`None`] for the maxiumum
+/// pollen sample or AQI item if there are no samples or items.
 ///
-/// If the result is [`Some`] it will be cached for 30 minutes for the the given position and
+/// If the result is [`Some`], it will be cached for 30 minutes for the the given position and
 /// metric.
 #[cached(
     time = 1800,
@@ -101,7 +123,11 @@ pub(crate) async fn get(
     position: Position,
     metric: Metric,
     maps_handle: &MapsHandle,
-) -> Option<Vec<Item>> {
+) -> Option<(
+    Vec<Item>,
+    Option<BuienradarSample>,
+    Option<LuchtmeetnetItem>,
+)> {
     if metric != Metric::PAQI {
         return None;
     };
