@@ -46,11 +46,7 @@ impl Item {
 fn merge(
     pollen_samples: Vec<BuienradarSample>,
     aqi_items: Vec<LuchtmeetnetItem>,
-) -> Option<(
-    Vec<Item>,
-    Option<BuienradarSample>,
-    Option<LuchtmeetnetItem>,
-)> {
+) -> Option<(Vec<Item>, BuienradarSample, LuchtmeetnetItem)> {
     let mut pollen_samples = pollen_samples;
     let mut aqi_items = aqi_items;
 
@@ -85,14 +81,18 @@ fn merge(
     }
 
     // Find the maximum sample/item of each series.
+    // Note: Unwrapping is possible because each series has at least an item otherwise `.first`
+    // would have failed above.
     let pollen_max = pollen_samples
         .iter()
         .max_by_key(|sample| sample.score)
-        .cloned();
+        .cloned()
+        .unwrap();
     let aqi_max = aqi_items
         .iter()
         .max_by_key(|item| (item.value * 1_000.0) as u32)
-        .cloned();
+        .cloned()
+        .unwrap();
 
     // Combine the samples with items by taking the maximum of pollen sample score and AQI item
     // value.
@@ -135,11 +135,7 @@ pub(crate) async fn get(
     position: Position,
     metric: Metric,
     maps_handle: &MapsHandle,
-) -> Option<(
-    Vec<Item>,
-    Option<BuienradarSample>,
-    Option<LuchtmeetnetItem>,
-)> {
+) -> Option<(Vec<Item>, BuienradarSample, LuchtmeetnetItem)> {
     if metric != Metric::PAQI {
         return None;
     };
@@ -183,7 +179,7 @@ mod tests {
             LuchtmeetnetItem::new(t_2, 2.4),
         ]);
 
-        // A normal merge.
+        // Perform a normal merge.
         let merged = super::merge(pollen_samples.clone(), aqi_items.clone());
         assert!(merged.is_some());
         let (paqi, max_pollen, max_aqi) = merged.unwrap();
@@ -195,8 +191,8 @@ mod tests {
                 Item::new(t_2, 2.4),
             ])
         );
-        assert_eq!(max_pollen, Some(BuienradarSample::new(t_1, 3)));
-        assert_eq!(max_aqi, Some(LuchtmeetnetItem::new(t_1, 2.9)));
+        assert_eq!(max_pollen, BuienradarSample::new(t_1, 3));
+        assert_eq!(max_aqi, LuchtmeetnetItem::new(t_1, 2.9));
 
         // The pollen samples are shifted, i.e. one hour in the future.
         let shifted_pollen_samples = pollen_samples[2..]
@@ -211,8 +207,8 @@ mod tests {
         assert!(merged.is_some());
         let (paqi, max_pollen, max_aqi) = merged.unwrap();
         assert_eq!(paqi, Vec::from([Item::new(t_1, 2.9), Item::new(t_2, 3.0),]));
-        assert_eq!(max_pollen, Some(BuienradarSample::new(t_2, 3)));
-        assert_eq!(max_aqi, Some(LuchtmeetnetItem::new(t_1, 2.9)));
+        assert_eq!(max_pollen, BuienradarSample::new(t_2, 3));
+        assert_eq!(max_aqi, LuchtmeetnetItem::new(t_1, 2.9));
 
         // The AQI items are shifted, i.e. one hour in the future.
         let shifted_aqi_items = aqi_items[2..]
@@ -227,10 +223,10 @@ mod tests {
         assert!(merged.is_some());
         let (paqi, max_pollen, max_aqi) = merged.unwrap();
         assert_eq!(paqi, Vec::from([Item::new(t_1, 3.0), Item::new(t_2, 2.9),]));
-        assert_eq!(max_pollen, Some(BuienradarSample::new(t_1, 3)));
-        assert_eq!(max_aqi, Some(LuchtmeetnetItem::new(t_2, 2.9)));
+        assert_eq!(max_pollen, BuienradarSample::new(t_1, 3));
+        assert_eq!(max_aqi, LuchtmeetnetItem::new(t_2, 2.9));
 
-        // Merging fails because the samples/items are too far apart.
+        // Merging fails because the samples/items are too far (6 hours) apart.
         let shifted_aqi_items = aqi_items
             .iter()
             .cloned()

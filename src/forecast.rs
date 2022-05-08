@@ -148,8 +148,8 @@ pub(crate) async fn forecast(
                     providers::combined::get(position, metric, maps_handle).await
                 {
                     forecast.paqi = Some(paqi);
-                    forecast.aqi_max = aqi_max;
-                    forecast.pollen_max = pollen_max;
+                    forecast.aqi_max = Some(aqi_max);
+                    forecast.pollen_max = Some(pollen_max);
                 }
             }
             Metric::PM10 => forecast.pm10 = providers::luchtmeetnet::get(position, metric).await,
