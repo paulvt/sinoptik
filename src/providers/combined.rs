@@ -206,7 +206,8 @@ mod tests {
             },
         ]);
 
-        let merged = super::merge(pollen_samples, aqi_items);
+        // A normal merge.
+        let merged = super::merge(pollen_samples.clone(), aqi_items.clone());
         assert!(merged.is_some());
         let (paqi, max_pollen, max_aqi) = merged.unwrap();
         assert_eq!(
@@ -240,5 +241,109 @@ mod tests {
                 value: 2.9
             })
         );
+
+        // The pollen samples are shifted, i.e. one hour in the future.
+        let shifted_pollen_samples = pollen_samples[2..]
+            .iter()
+            .cloned()
+            .map(|mut item| {
+                item.time = item.time.checked_add_signed(Duration::hours(1)).unwrap();
+                item
+            })
+            .collect::<Vec<_>>();
+        let merged = super::merge(shifted_pollen_samples, aqi_items.clone());
+        assert!(merged.is_some());
+        let (paqi, max_pollen, max_aqi) = merged.unwrap();
+        assert_eq!(
+            paqi,
+            Vec::from([
+                Item {
+                    time: t_1,
+                    value: 2.9
+                },
+                Item {
+                    time: t_2,
+                    value: 3.0
+                }
+            ])
+        );
+        assert_eq!(
+            max_pollen,
+            Some(BuienradarSample {
+                time: t_2,
+                score: 3
+            })
+        );
+        assert_eq!(
+            max_aqi,
+            Some(LuchtmeetnetItem {
+                time: t_1,
+                value: 2.9
+            })
+        );
+
+        // The AQI items are shifted, i.e. one hour in the future.
+        let shifted_aqi_items = aqi_items[2..]
+            .iter()
+            .cloned()
+            .map(|mut item| {
+                item.time = item.time.checked_add_signed(Duration::hours(1)).unwrap();
+                item
+            })
+            .collect::<Vec<_>>();
+        let merged = super::merge(pollen_samples.clone(), shifted_aqi_items);
+        assert!(merged.is_some());
+        let (paqi, max_pollen, max_aqi) = merged.unwrap();
+        assert_eq!(
+            paqi,
+            Vec::from([
+                Item {
+                    time: t_1,
+                    value: 3.0
+                },
+                Item {
+                    time: t_2,
+                    value: 2.9
+                }
+            ])
+        );
+        assert_eq!(
+            max_pollen,
+            Some(BuienradarSample {
+                time: t_1,
+                score: 3
+            })
+        );
+        assert_eq!(
+            max_aqi,
+            Some(LuchtmeetnetItem {
+                time: t_2,
+                value: 2.9
+            })
+        );
+
+        // Merging fails because the samples/items are too far apart.
+        let shifted_aqi_items = aqi_items
+            .iter()
+            .cloned()
+            .map(|mut item| {
+                item.time = item.time.checked_add_signed(Duration::hours(6)).unwrap();
+                item
+            })
+            .collect::<Vec<_>>();
+        let merged = super::merge(pollen_samples.clone(), shifted_aqi_items);
+        assert_eq!(merged, None);
+
+        // The pollen samples list is empty, or everything is too old.
+        let merged = super::merge(Vec::new(), aqi_items.clone());
+        assert_eq!(merged, None);
+        let merged = super::merge(pollen_samples[0..2].to_vec(), aqi_items.clone());
+        assert_eq!(merged, None);
+
+        // The AQI items list is empty, or everything is too old.
+        let merged = super::merge(pollen_samples.clone(), Vec::new());
+        assert_eq!(merged, None);
+        let merged = super::merge(pollen_samples, aqi_items[0..2].to_vec());
+        assert_eq!(merged, None);
     }
 }
