@@ -47,6 +47,11 @@ fn merge(
     let mut pollen_samples = pollen_samples;
     let mut aqi_items = aqi_items;
 
+    // Only retain samples/items that have timestamps that are at least half an hour ago.
+    let now = Utc::now();
+    pollen_samples.retain(|smp| smp.time.signed_duration_since(now).num_seconds() > -1800);
+    aqi_items.retain(|item| item.time.signed_duration_since(now).num_seconds() > -1800);
+
     // Align the iterators based on the (hourly) timestamps!
     let pollen_first_time = pollen_samples.first()?.time;
     let aqi_first_time = aqi_items.first()?.time;
@@ -135,4 +140,105 @@ pub(crate) async fn get(
     let aqi_items = luchtmeetnet::get(position, Metric::AQI).await;
 
     merge(pollen_items?, aqi_items?)
+}
+
+#[cfg(test)]
+mod tests {
+    use chrono::{Duration, Timelike};
+
+    use super::*;
+
+    #[test]
+    fn merge() {
+        let t_now = Utc::now()
+            .with_second(0)
+            .unwrap()
+            .with_nanosecond(0)
+            .unwrap();
+        let t_m2 = t_now.checked_sub_signed(Duration::days(1)).unwrap();
+        let t_m1 = t_now.checked_sub_signed(Duration::hours(2)).unwrap();
+        let t_0 = t_now.checked_add_signed(Duration::minutes(12)).unwrap();
+        let t_1 = t_now.checked_add_signed(Duration::minutes(72)).unwrap();
+        let t_2 = t_now.checked_add_signed(Duration::minutes(132)).unwrap();
+
+        let pollen_samples = Vec::from([
+            BuienradarSample {
+                time: t_m2,
+                score: 4,
+            },
+            BuienradarSample {
+                time: t_m1,
+                score: 5,
+            },
+            BuienradarSample {
+                time: t_0,
+                score: 1,
+            },
+            BuienradarSample {
+                time: t_1,
+                score: 3,
+            },
+            BuienradarSample {
+                time: t_2,
+                score: 2,
+            },
+        ]);
+        let aqi_items = Vec::from([
+            LuchtmeetnetItem {
+                time: t_m2,
+                value: 4.0,
+            },
+            LuchtmeetnetItem {
+                time: t_m1,
+                value: 5.0,
+            },
+            LuchtmeetnetItem {
+                time: t_0,
+                value: 1.1,
+            },
+            LuchtmeetnetItem {
+                time: t_1,
+                value: 2.9,
+            },
+            LuchtmeetnetItem {
+                time: t_2,
+                value: 2.4,
+            },
+        ]);
+
+        let merged = super::merge(pollen_samples, aqi_items);
+        assert!(merged.is_some());
+        let (paqi, max_pollen, max_aqi) = merged.unwrap();
+        assert_eq!(
+            paqi,
+            Vec::from([
+                Item {
+                    time: t_0,
+                    value: 1.1
+                },
+                Item {
+                    time: t_1,
+                    value: 3.0
+                },
+                Item {
+                    time: t_2,
+                    value: 2.4
+                },
+            ])
+        );
+        assert_eq!(
+            max_pollen,
+            Some(BuienradarSample {
+                time: t_1,
+                score: 3
+            })
+        );
+        assert_eq!(
+            max_aqi,
+            Some(LuchtmeetnetItem {
+                time: t_1,
+                value: 2.9
+            })
+        );
+    }
 }
