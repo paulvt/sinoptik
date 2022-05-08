@@ -7,7 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.2.0] - 2022-5-07
+## [0.2.1] - 2002-05-08
+
+### Added
+
+* Add tests for the merge functionality of the combined provider (PAQI)
+
+### Fixed
+
+* Filter out old item/samples in combined provider (PAQI)
+
+## [0.2.0] - 2022-05-07
 
 ### Added
 
@@ -18,6 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Initial release.
 
-[Unreleased]: https://git.luon.net/paul/sinoptik/compare/v0.2.0...HEAD
+[Unreleased]: https://git.luon.net/paul/sinoptik/compare/v0.2.1...HEAD
+[0.2.1]: https://git.luon.net/paul/sinoptik/compare/v0.2.0...v0.2.1
 [0.2.0]: https://git.luon.net/paul/sinoptik/compare/v0.1.0...v0.2.0
 [0.1.0]: https://git.luon.net/paul/sinoptik/commits/tag/v0.1.0
