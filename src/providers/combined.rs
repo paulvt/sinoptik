@@ -14,7 +14,7 @@ use crate::position::Position;
 use crate::Metric;
 
 /// The combined data item.
-#[derive(Clone, Debug, Serialize)]
+#[derive(Clone, Debug, PartialEq, Serialize)]
 #[serde(crate = "rocket::serde")]
 pub(crate) struct Item {
     /// The time(stamp) of the forecast.

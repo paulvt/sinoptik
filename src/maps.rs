@@ -294,7 +294,7 @@ impl MapsRefresh for MapsHandle {
 /// A Buienradar map sample.
 ///
 /// This represents a value at a given time.
-#[derive(Clone, Debug, Serialize)]
+#[derive(Clone, Debug, PartialEq, Serialize)]
 #[serde(crate = "rocket::serde")]
 pub(crate) struct Sample {
     /// The time(stamp) of the forecast.

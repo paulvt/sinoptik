@@ -36,7 +36,7 @@ struct Row {
 }
 
 /// The Buienradar API precipitation data item.
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 #[serde(crate = "rocket::serde", try_from = "Row")]
 pub(crate) struct Item {
     /// The time(stamp) of the forecast.

@@ -24,7 +24,7 @@ struct Container {
 }
 
 /// The Luchtmeetnet API data item.
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 #[serde(crate = "rocket::serde")]
 pub(crate) struct Item {
     /// The time(stamp) of the forecast.
