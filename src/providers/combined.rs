@@ -25,6 +25,13 @@ pub(crate) struct Item {
     value: f32,
 }
 
+impl Item {
+    #[cfg(test)]
+    pub(crate) fn new(time: DateTime<Utc>, value: f32) -> Self {
+        Self { time, value }
+    }
+}
+
 /// Merges pollen samples and AQI items into combined items.
 ///
 /// The merging drops items from either the pollen samples or from the AQI items if they are not
@@ -162,48 +169,18 @@ mod tests {
         let t_2 = t_now.checked_add_signed(Duration::minutes(132)).unwrap();
 
         let pollen_samples = Vec::from([
-            BuienradarSample {
-                time: t_m2,
-                score: 4,
-            },
-            BuienradarSample {
-                time: t_m1,
-                score: 5,
-            },
-            BuienradarSample {
-                time: t_0,
-                score: 1,
-            },
-            BuienradarSample {
-                time: t_1,
-                score: 3,
-            },
-            BuienradarSample {
-                time: t_2,
-                score: 2,
-            },
+            BuienradarSample::new(t_m2, 4),
+            BuienradarSample::new(t_m1, 5),
+            BuienradarSample::new(t_0, 1),
+            BuienradarSample::new(t_1, 3),
+            BuienradarSample::new(t_2, 2),
         ]);
         let aqi_items = Vec::from([
-            LuchtmeetnetItem {
-                time: t_m2,
-                value: 4.0,
-            },
-            LuchtmeetnetItem {
-                time: t_m1,
-                value: 5.0,
-            },
-            LuchtmeetnetItem {
-                time: t_0,
-                value: 1.1,
-            },
-            LuchtmeetnetItem {
-                time: t_1,
-                value: 2.9,
-            },
-            LuchtmeetnetItem {
-                time: t_2,
-                value: 2.4,
-            },
+            LuchtmeetnetItem::new(t_m2, 4.0),
+            LuchtmeetnetItem::new(t_m1, 5.0),
+            LuchtmeetnetItem::new(t_0, 1.1),
+            LuchtmeetnetItem::new(t_1, 2.9),
+            LuchtmeetnetItem::new(t_2, 2.4),
         ]);
 
         // A normal merge.
@@ -213,34 +190,13 @@ mod tests {
         assert_eq!(
             paqi,
             Vec::from([
-                Item {
-                    time: t_0,
-                    value: 1.1
-                },
-                Item {
-                    time: t_1,
-                    value: 3.0
-                },
-                Item {
-                    time: t_2,
-                    value: 2.4
-                },
+                Item::new(t_0, 1.1),
+                Item::new(t_1, 3.0),
+                Item::new(t_2, 2.4),
             ])
         );
-        assert_eq!(
-            max_pollen,
-            Some(BuienradarSample {
-                time: t_1,
-                score: 3
-            })
-        );
-        assert_eq!(
-            max_aqi,
-            Some(LuchtmeetnetItem {
-                time: t_1,
-                value: 2.9
-            })
-        );
+        assert_eq!(max_pollen, Some(BuienradarSample::new(t_1, 3)));
+        assert_eq!(max_aqi, Some(LuchtmeetnetItem::new(t_1, 2.9)));
 
         // The pollen samples are shifted, i.e. one hour in the future.
         let shifted_pollen_samples = pollen_samples[2..]
@@ -254,33 +210,9 @@ mod tests {
         let merged = super::merge(shifted_pollen_samples, aqi_items.clone());
         assert!(merged.is_some());
         let (paqi, max_pollen, max_aqi) = merged.unwrap();
-        assert_eq!(
-            paqi,
-            Vec::from([
-                Item {
-                    time: t_1,
-                    value: 2.9
-                },
-                Item {
-                    time: t_2,
-                    value: 3.0
-                }
-            ])
-        );
-        assert_eq!(
-            max_pollen,
-            Some(BuienradarSample {
-                time: t_2,
-                score: 3
-            })
-        );
-        assert_eq!(
-            max_aqi,
-            Some(LuchtmeetnetItem {
-                time: t_1,
-                value: 2.9
-            })
-        );
+        assert_eq!(paqi, Vec::from([Item::new(t_1, 2.9), Item::new(t_2, 3.0),]));
+        assert_eq!(max_pollen, Some(BuienradarSample::new(t_2, 3)));
+        assert_eq!(max_aqi, Some(LuchtmeetnetItem::new(t_1, 2.9)));
 
         // The AQI items are shifted, i.e. one hour in the future.
         let shifted_aqi_items = aqi_items[2..]
@@ -294,33 +226,9 @@ mod tests {
         let merged = super::merge(pollen_samples.clone(), shifted_aqi_items);
         assert!(merged.is_some());
         let (paqi, max_pollen, max_aqi) = merged.unwrap();
-        assert_eq!(
-            paqi,
-            Vec::from([
-                Item {
-                    time: t_1,
-                    value: 3.0
-                },
-                Item {
-                    time: t_2,
-                    value: 2.9
-                }
-            ])
-        );
-        assert_eq!(
-            max_pollen,
-            Some(BuienradarSample {
-                time: t_1,
-                score: 3
-            })
-        );
-        assert_eq!(
-            max_aqi,
-            Some(LuchtmeetnetItem {
-                time: t_2,
-                value: 2.9
-            })
-        );
+        assert_eq!(paqi, Vec::from([Item::new(t_1, 3.0), Item::new(t_2, 2.9),]));
+        assert_eq!(max_pollen, Some(BuienradarSample::new(t_1, 3)));
+        assert_eq!(max_aqi, Some(LuchtmeetnetItem::new(t_2, 2.9)));
 
         // Merging fails because the samples/items are too far apart.
         let shifted_aqi_items = aqi_items

@@ -40,6 +40,13 @@ pub(crate) struct Item {
     pub(crate) value: f32,
 }
 
+impl Item {
+    #[cfg(test)]
+    pub(crate) fn new(time: DateTime<Utc>, value: f32) -> Self {
+        Self { time, value }
+    }
+}
+
 /// Retrieves the Luchtmeetnet forecasted items for the provided position and metric.
 ///
 /// It supports the following metrics:

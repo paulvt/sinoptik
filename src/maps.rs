@@ -308,6 +308,13 @@ pub(crate) struct Sample {
     pub(crate) score: u8,
 }
 
+impl Sample {
+    #[cfg(test)]
+    pub(crate) fn new(time: DateTime<Utc>, score: u8) -> Self {
+        Self { time, score }
+    }
+}
+
 /// Builds a scoring histogram for the map key.
 fn map_key_histogram() -> MapKeyHistogram {
     MAP_KEY
