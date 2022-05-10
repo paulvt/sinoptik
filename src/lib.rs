@@ -25,7 +25,7 @@ pub(crate) mod position;
 pub(crate) mod providers;
 
 #[derive(Responder)]
-#[response(status = 200, content_type = "image/png")]
+#[response(content_type = "image/png")]
 struct PngImageData(Vec<u8>);
 
 /// Handler for retrieving the forecast for an address.
