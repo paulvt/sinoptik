@@ -10,8 +10,7 @@
 use std::future::Future;
 use std::sync::{Arc, Mutex};
 
-use rocket::http::ContentType;
-use rocket::response::content::Custom;
+use rocket::response::Responder;
 use rocket::serde::json::Json;
 use rocket::{get, routes, Build, Rocket, State};
 
@@ -24,6 +23,10 @@ pub(crate) mod forecast;
 pub(crate) mod maps;
 pub(crate) mod position;
 pub(crate) mod providers;
+
+#[derive(Responder)]
+#[response(status = 200, content_type = "image/png")]
+struct PngImageData(Vec<u8>);
 
 /// Handler for retrieving the forecast for an address.
 #[get("/forecast?<address>&<metrics>")]
@@ -61,11 +64,11 @@ async fn map_address(
     address: String,
     metric: Metric,
     maps_handle: &State<MapsHandle>,
-) -> Option<Custom<Vec<u8>>> {
+) -> Option<PngImageData> {
     let position = resolve_address(address).await?;
     let image_data = mark_map(position, metric, maps_handle).await;
 
-    image_data.map(|id| Custom(ContentType::PNG, id))
+    image_data.map(PngImageData)
 }
 
 /// Handler for showing the current map with the geocoded position for a specific metric.
@@ -77,11 +80,11 @@ async fn map_geo(
     lon: f64,
     metric: Metric,
     maps_handle: &State<MapsHandle>,
-) -> Option<Custom<Vec<u8>>> {
+) -> Option<PngImageData> {
     let position = Position::new(lat, lon);
     let image_data = mark_map(position, metric, maps_handle).await;
 
-    image_data.map(|id| Custom(ContentType::PNG, id))
+    image_data.map(PngImageData)
 }
 
 /// Sets up Rocket.

@@ -22,7 +22,7 @@ async fn main() -> Result<()> {
 
     select! {
         result = rocket.launch() => {
-            result?
+            result.map(|_| ())?
         }
         result = maps_refresher => {
             shutdown.notify();
