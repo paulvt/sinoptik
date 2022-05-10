@@ -8,7 +8,7 @@ use std::f64::consts::PI;
 use std::sync::{Arc, Mutex};
 
 use chrono::serde::ts_seconds;
-use chrono::{DateTime, Duration, Utc};
+use chrono::{DateTime, Duration, NaiveDateTime, Utc};
 use image::{DynamicImage, GenericImage, GenericImageView, ImageFormat, Pixel, Rgb, Rgba};
 use reqwest::Url;
 use rocket::serde::Serialize;
@@ -396,6 +396,14 @@ async fn retrieve_image(url: Url) -> Option<(DynamicImage, DateTime<Utc>)> {
         .map(chrono::DateTime::parse_from_rfc2822)?
         .map(DateTime::<Utc>::from)
         .ok()?;
+    let timestamp_base = {
+        let path = response.url().path();
+        let (_, filename) = path.rsplit_once('/')?;
+        let (timestamp_str, _) = filename.split_once("__")?;
+        let timestamp = NaiveDateTime::parse_from_str(timestamp_str, "%Y%m%d%H%M").ok()?;
+
+        DateTime::<Utc>::from_utc(timestamp, Utc)
+    };
     let bytes = response.bytes().await.ok()?;
 
     tokio::task::spawn_blocking(move || {
