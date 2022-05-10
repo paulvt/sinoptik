@@ -7,7 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.2.1] - 2002-05-08
+## [0.2.2] - 2022-05-10
+
+### Changed
+
+* Switch to Rocket 0.5 RC2
+
+### Fixed
+
+* Fix timestamps for map samples not being correct (AQI, PAQI, UVI metrics) (#22)
+* Valid samples/items will no longer be discarded too early
+
+## [0.2.1] - 2022-05-08
 
 ### Added
 
@@ -28,7 +39,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Initial release.
 
-[Unreleased]: https://git.luon.net/paul/sinoptik/compare/v0.2.1...HEAD
+[Unreleased]: https://git.luon.net/paul/sinoptik/compare/v0.2.2...HEAD
+[0.2.2]: https://git.luon.net/paul/sinoptik/compare/v0.2.1...v0.2.2
 [0.2.1]: https://git.luon.net/paul/sinoptik/compare/v0.2.0...v0.2.1
 [0.2.0]: https://git.luon.net/paul/sinoptik/compare/v0.1.0...v0.2.0
 [0.1.0]: https://git.luon.net/paul/sinoptik/commits/tag/v0.1.0
