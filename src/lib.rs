@@ -110,7 +110,7 @@ mod tests {
     use assert_float_eq::*;
     use assert_matches::assert_matches;
     use image::{DynamicImage, Rgba, RgbaImage};
-    use rocket::http::Status;
+    use rocket::http::{ContentType, Status};
     use rocket::local::blocking::Client;
     use rocket::serde::json::Value as JsonValue;
 
