@@ -50,10 +50,10 @@ fn merge(
     let mut pollen_samples = pollen_samples;
     let mut aqi_items = aqi_items;
 
-    // Only retain samples/items that have timestamps that are at least half an hour ago.
+    // Only retain samples/items that have timestamps that are at least an hour ago.
     let now = Utc::now();
-    pollen_samples.retain(|smp| smp.time.signed_duration_since(now).num_seconds() > -1800);
-    aqi_items.retain(|item| item.time.signed_duration_since(now).num_seconds() > -1800);
+    pollen_samples.retain(|smp| smp.time.signed_duration_since(now).num_seconds() > -3600);
+    aqi_items.retain(|item| item.time.signed_duration_since(now).num_seconds() > -3600);
 
     // Align the iterators based on the (hourly) timestamps!
     let pollen_first_time = pollen_samples.first()?.time;
