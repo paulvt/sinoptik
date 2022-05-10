@@ -107,27 +107,27 @@ position:
 {
   "lat": 52.0905169,
   "lon": 5.1109709,
-  "time": 1645800043,
+  "time": 1652188682,
   "UVI": [
     {
-      "time": 1645799526,
-      "value": 1
+      "time": 1652140800,
+      "value": 4
     },
     {
-      "time": 1645885926,
-      "value": 2
+      "time": 1652227200,
+      "value": 4
     },
     {
-      "time": 1645972326,
-      "value": 3
+      "time": 1652313600,
+      "value": 4
     },
     {
-      "time": 1646058726,
-      "value": 2
+      "time": 1652400000,
+      "value": 4
     },
     {
-      "time": 1646145126,
-      "value": 1
+      "time": 1652486400,
+      "value": 5
     }
   ]
 }
@@ -138,31 +138,31 @@ position:
 The PAQI (pollen/air quality index) metric is a special combined metric.
 If selected, it not only merges items from the AQI and pollen metric into
 `PAQI` by selecting the maximum value for each hour, but it also yields the
-24-hour maximum forecast item for air quality index in `AQI_max` and for
-pollen in `pollen_max` seperately:
+maximum forecast item for air quality index in `AQI_max` and for
+pollen in `pollen_max` seperately (out the items that `PAQI` combined):
 
 ``` json
 {
   "lat": 52.0905169,
   "lon": 5.1109709,
-  "time": 1645800043,
+  "time": 1652189065,
   "AQI_max": {
-    "time": 1652022000,
-    "value": 6.65
+    "time": 1652191200,
+    "value": 6.09
   },
   "PAQI": [
     {
-      "time": 1651951457,
-      "value": 6.04
+      "time": 1652187600,
+      "value": 6.09
     },
     {
-      "time": 1651955057,
-      "value": 6.04
+      "time": 1652191200,
+      "value": 6.09
     },
     ...
   ],
   "pollen_max": {
-    "time": 1652034257,
+    "time": 1652209200,
     "value": 6
   }
 }
