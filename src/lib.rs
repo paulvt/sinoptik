@@ -111,12 +111,15 @@ mod tests {
     use rocket::local::blocking::Client;
     use rocket::serde::json::Value as JsonValue;
 
+    use super::maps::RetrievedMaps;
     use super::*;
 
-    fn maps_stub(map_count: u32) -> DynamicImage {
+    fn maps_stub(map_count: u32) -> RetrievedMaps {
         let map_color = Rgba::from([73, 218, 33, 255]); // First color from map key.
+        let image =
+            DynamicImage::ImageRgba8(RgbaImage::from_pixel(820 * map_count, 988, map_color));
 
-        DynamicImage::ImageRgba8(RgbaImage::from_pixel(820 * map_count, 988, map_color))
+        RetrievedMaps::new(image)
     }
 
     fn maps_handle_stub() -> MapsHandle {
