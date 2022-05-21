@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.3] - 2022-05-21
+
+### Fixed
+
+* Update the examples in `README.md`
+* Fix tests by adding missing type
+* Fix map key color code for level 8 used by map sampling
+
 ## [0.2.2] - 2022-05-10
 
 ### Changed
@@ -39,7 +47,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Initial release.
 
-[Unreleased]: https://git.luon.net/paul/sinoptik/compare/v0.2.2...HEAD
+[Unreleased]: https://git.luon.net/paul/sinoptik/compare/v0.2.3...HEAD
+[0.2.3]: https://git.luon.net/paul/sinoptik/compare/v0.2.2...v0.2.3
 [0.2.2]: https://git.luon.net/paul/sinoptik/compare/v0.2.1...v0.2.2
 [0.2.1]: https://git.luon.net/paul/sinoptik/compare/v0.2.0...v0.2.1
 [0.2.0]: https://git.luon.net/paul/sinoptik/compare/v0.1.0...v0.2.0
