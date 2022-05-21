@@ -29,16 +29,16 @@ type MapKeyHistogram = HashMap<Rgb<u8>, u32>;
 /// Note that the actual score starts from 1, not 0 as per this array.
 #[rustfmt::skip]
 const MAP_KEY: [[u8; 3]; 10] = [
-    [ 73, 218,  33],
-    [ 48, 210,   0],
-    [255, 248, 139],
-    [255, 246,  66],
-    [253, 187,  49],
-    [253, 142,  36],
-    [252,  16,  62],
-    [150,  10,  51],
-    [166, 109, 188],
-    [179,  48, 161],
+    [0x49, 0xDA, 0x21],
+    [0x30, 0xD2, 0x00],
+    [0xFF, 0xF8, 0x8B],
+    [0xFF, 0xF6, 0x42],
+    [0xFD, 0xBB, 0x31],
+    [0xFD, 0x8E, 0x24],
+    [0xFC, 0x10, 0x3E],
+    [0x96, 0x0A, 0x33],
+    [0xA6, 0x6D, 0xBC],
+    [0xB3, 0x30, 0xA1],
 ];
 
 /// The Buienradar map sample size.
