@@ -7,9 +7,9 @@
 )]
 #![deny(missing_docs)]
 
-use std::future::Future;
 use std::sync::{Arc, Mutex};
 
+use rocket::fairing::AdHoc;
 use rocket::response::Responder;
 use rocket::serde::json::Json;
 use rocket::{get, routes, Build, Rocket, State};
@@ -89,20 +89,28 @@ async fn map_geo(
 
 /// Sets up Rocket.
 fn rocket(maps_handle: MapsHandle) -> Rocket<Build> {
-    rocket::build().manage(maps_handle).mount(
-        "/",
-        routes![forecast_address, forecast_geo, map_address, map_geo],
-    )
+    let maps_refresher = maps::run(Arc::clone(&maps_handle));
+
+    rocket::build()
+        .mount(
+            "/",
+            routes![forecast_address, forecast_geo, map_address, map_geo],
+        )
+        .manage(maps_handle)
+        .attach(AdHoc::on_liftoff("Maps refresher", |_| {
+            Box::pin(async move {
+                // We don't care about the join handle nor error results?
+                let _ = rocket::tokio::spawn(maps_refresher);
+            })
+        }))
 }
 
 /// Sets up Rocket and the maps cache refresher task.
-pub fn setup() -> (Rocket<Build>, impl Future<Output = ()>) {
+pub fn setup() -> Rocket<Build> {
     let maps = Maps::new();
     let maps_handle = Arc::new(Mutex::new(maps));
-    let maps_refresher = maps::run(Arc::clone(&maps_handle));
-    let rocket = rocket(maps_handle);
 
-    (rocket, maps_refresher)
+    rocket(maps_handle)
 }
 
 #[cfg(test)]

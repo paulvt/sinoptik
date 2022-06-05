@@ -7,28 +7,8 @@
 )]
 #![deny(missing_docs)]
 
-use color_eyre::Result;
-use rocket::tokio::{self, select};
-
 /// Starts the main maps refresh task and sets up and launches Rocket.
-#[rocket::main]
-async fn main() -> Result<()> {
-    color_eyre::install()?;
-
-    let (rocket, maps_refresher) = sinoptik::setup();
-    let rocket = rocket.ignite().await?;
-    let shutdown = rocket.shutdown();
-    let maps_refresher = tokio::spawn(maps_refresher);
-
-    select! {
-        result = rocket.launch() => {
-            result.map(|_| ())?
-        }
-        result = maps_refresher => {
-            shutdown.notify();
-            result?
-        }
-    }
-
-    Ok(())
+#[rocket::launch]
+async fn rocket() -> _ {
+    sinoptik::setup()
 }
