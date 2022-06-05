@@ -136,20 +136,14 @@ position:
 #### Combined metric PAQI
 
 The PAQI (pollen/air quality index) metric is a special combined metric.
-If selected, it not only merges items from the AQI and pollen metric into
-`PAQI` by selecting the maximum value for each hour, but it also yields the
-maximum forecast item for air quality index in `AQI_max` and for
-pollen in `pollen_max` seperately (out the items that `PAQI` combined):
+If selected, it merges items from the AQI and pollen metric into `PAQI` by
+selecting the maximum value for each hour:
 
 ``` json
 {
   "lat": 52.0905169,
   "lon": 5.1109709,
   "time": 1652189065,
-  "AQI_max": {
-    "time": 1652191200,
-    "value": 6.09
-  },
   "PAQI": [
     {
       "time": 1652187600,
@@ -160,11 +154,7 @@ pollen in `pollen_max` seperately (out the items that `PAQI` combined):
       "value": 6.09
     },
     ...
-  ],
-  "pollen_max": {
-    "time": 1652209200,
-    "value": 6
-  }
+  ]
 }
 ```
 

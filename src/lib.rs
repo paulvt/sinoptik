@@ -154,13 +154,11 @@ mod tests {
         assert_f64_near!(json["lon"].as_f64().unwrap(), 5.478633);
         assert_matches!(json["time"], JsonValue::Number(_));
         assert_matches!(json.get("AQI"), None);
-        assert_matches!(json.get("AQI_max"), None);
         assert_matches!(json.get("NO2"), None);
         assert_matches!(json.get("O3"), None);
         assert_matches!(json.get("PAQI"), None);
         assert_matches!(json.get("PM10"), None);
         assert_matches!(json.get("pollen"), None);
-        assert_matches!(json.get("pollen_max"), None);
         assert_matches!(json.get("precipitation"), None);
         assert_matches!(json.get("UVI"), None);
 
@@ -174,13 +172,11 @@ mod tests {
         assert_f64_near!(json["lon"].as_f64().unwrap(), 5.478633);
         assert_matches!(json["time"], JsonValue::Number(_));
         assert_matches!(json.get("AQI"), Some(JsonValue::Array(_)));
-        assert_matches!(json.get("AQI_max"), Some(JsonValue::Object(_)));
         assert_matches!(json.get("NO2"), Some(JsonValue::Array(_)));
         assert_matches!(json.get("O3"), Some(JsonValue::Array(_)));
         assert_matches!(json.get("PAQI"), Some(JsonValue::Array(_)));
         assert_matches!(json.get("PM10"), Some(JsonValue::Array(_)));
         assert_matches!(json.get("pollen"), Some(JsonValue::Array(_)));
-        assert_matches!(json.get("pollen_max"), Some(JsonValue::Object(_)));
         assert_matches!(json.get("precipitation"), Some(JsonValue::Array(_)));
         assert_matches!(json.get("UVI"), Some(JsonValue::Array(_)));
     }
@@ -198,13 +194,11 @@ mod tests {
         assert_f64_near!(json["lon"].as_f64().unwrap(), 5.5);
         assert_matches!(json["time"], JsonValue::Number(_));
         assert_matches!(json.get("AQI"), None);
-        assert_matches!(json.get("AQI_max"), None);
         assert_matches!(json.get("NO2"), None);
         assert_matches!(json.get("O3"), None);
         assert_matches!(json.get("PAQI"), None);
         assert_matches!(json.get("PM10"), None);
         assert_matches!(json.get("pollen"), None);
-        assert_matches!(json.get("pollen_max"), None);
         assert_matches!(json.get("precipitation"), None);
         assert_matches!(json.get("UVI"), None);
 
@@ -218,13 +212,11 @@ mod tests {
         assert_f64_near!(json["lon"].as_f64().unwrap(), 5.5);
         assert_matches!(json["time"], JsonValue::Number(_));
         assert_matches!(json.get("AQI"), Some(JsonValue::Array(_)));
-        assert_matches!(json.get("AQI_max"), Some(JsonValue::Object(_)));
         assert_matches!(json.get("NO2"), Some(JsonValue::Array(_)));
         assert_matches!(json.get("O3"), Some(JsonValue::Array(_)));
         assert_matches!(json.get("PAQI"), Some(JsonValue::Array(_)));
         assert_matches!(json.get("PM10"), Some(JsonValue::Array(_)));
         assert_matches!(json.get("pollen"), Some(JsonValue::Array(_)));
-        assert_matches!(json.get("pollen_max"), Some(JsonValue::Object(_)));
         assert_matches!(json.get("precipitation"), Some(JsonValue::Array(_)));
         assert_matches!(json.get("UVI"), Some(JsonValue::Array(_)));
     }

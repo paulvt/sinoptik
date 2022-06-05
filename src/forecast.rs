@@ -33,10 +33,6 @@ pub(crate) struct Forecast {
     #[serde(rename = "AQI", skip_serializing_if = "Option::is_none")]
     aqi: Option<Vec<LuchtmeetnetItem>>,
 
-    /// The maximum air quality index value (when asked for PAQI).
-    #[serde(rename = "AQI_max", skip_serializing_if = "Option::is_none")]
-    aqi_max: Option<LuchtmeetnetItem>,
-
     /// The NO₂ concentration (when asked for).
     #[serde(rename = "NO2", skip_serializing_if = "Option::is_none")]
     no2: Option<Vec<LuchtmeetnetItem>>,
@@ -56,10 +52,6 @@ pub(crate) struct Forecast {
     /// The pollen in the air (when asked for).
     #[serde(skip_serializing_if = "Option::is_none")]
     pollen: Option<Vec<BuienradarSample>>,
-
-    /// The maximum pollen in the air (when asked for PAQI).
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pollen_max: Option<BuienradarSample>,
 
     /// The precipitation (when asked for).
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -144,13 +136,7 @@ pub(crate) async fn forecast(
             Metric::NO2 => forecast.no2 = providers::luchtmeetnet::get(position, metric).await,
             Metric::O3 => forecast.o3 = providers::luchtmeetnet::get(position, metric).await,
             Metric::PAQI => {
-                if let Some((paqi, pollen_max, aqi_max)) =
-                    providers::combined::get(position, metric, maps_handle).await
-                {
-                    forecast.paqi = Some(paqi);
-                    forecast.aqi_max = Some(aqi_max);
-                    forecast.pollen_max = Some(pollen_max);
-                }
+                forecast.paqi = providers::combined::get(position, metric, maps_handle).await
             }
             Metric::PM10 => forecast.pm10 = providers::luchtmeetnet::get(position, metric).await,
             Metric::Pollen => {
