@@ -443,7 +443,7 @@ async fn retrieve_pollen_maps() -> Option<RetrievedMaps> {
     let mut url = Url::parse(POLLEN_BASE_URL).unwrap();
     url.query_pairs_mut().append_pair("timestamp", &timestamp);
 
-    println!("🔽 Refreshing pollen maps from: {}", url);
+    println!("🗺️  Refreshing pollen maps from: {}", url);
     retrieve_image(url).await
 }
 
@@ -455,7 +455,7 @@ async fn retrieve_uvi_maps() -> Option<RetrievedMaps> {
     let mut url = Url::parse(UVI_BASE_URL).unwrap();
     url.query_pairs_mut().append_pair("timestamp", &timestamp);
 
-    println!("🔽 Refreshing UV index maps from: {}", url);
+    println!("🗺️  Refreshing UV index maps from: {}", url);
     retrieve_image(url).await
 }
 
