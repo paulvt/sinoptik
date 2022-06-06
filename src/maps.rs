@@ -9,7 +9,9 @@ use std::sync::{Arc, Mutex};
 
 use chrono::serde::ts_seconds;
 use chrono::{DateTime, Duration, NaiveDateTime, Utc};
-use image::{DynamicImage, GenericImage, GenericImageView, ImageFormat, Pixel, Rgb, Rgba};
+use image::{
+    DynamicImage, GenericImage, GenericImageView, ImageError, ImageFormat, Pixel, Rgb, Rgba,
+};
 use reqwest::Url;
 use rocket::serde::Serialize;
 use rocket::tokio;
@@ -17,6 +19,57 @@ use rocket::tokio::time::sleep;
 
 use crate::forecast::Metric;
 use crate::position::Position;
+
+/// The possible maps errors that can occur.
+#[derive(Debug, thiserror::Error)]
+pub(crate) enum Error {
+    /// A timestamp parse error occurred.
+    #[error("Timestamp parse error: {0}")]
+    ChronoParse(#[from] chrono::ParseError),
+
+    /// A HTTP request error occurred.
+    #[error("HTTP request error: {0}")]
+    HttpRequest(#[from] reqwest::Error),
+
+    /// Failed to represent HTTP header as a string.
+    #[error("Failed to represent HTTP header as a string")]
+    HttpHeaderToStr(#[from] reqwest::header::ToStrError),
+
+    /// Could not find Last-Modified header.
+    #[error("Could not find Last-Modified HTTP header")]
+    MissingLastModifiedHttpHeader,
+
+    /// An image error occurred.
+    #[error("Image error: {0}")]
+    Image(#[from] ImageError),
+
+    /// Encountered an invalid image file path.
+    #[error("Invalid image file path: {0}")]
+    InvalidImagePath(String),
+
+    /// Failed to join a task.
+    #[error("Failed to join a task: {0}")]
+    Join(#[from] rocket::tokio::task::JoinError),
+
+    /// Found no known (map key) colors in samples.
+    #[error("Found not known colors in samples")]
+    NoKnownColorsInSamples,
+
+    /// No maps found (yet).
+    #[error("No maps found (yet)")]
+    NoMapsYet,
+
+    /// Got out of bound coordinates for a map.
+    #[error("Got out of bound coordinates for a map: ({0}, {1})")]
+    OutOfBoundCoords(u32, u32),
+
+    /// Got out of bound offset for a map.
+    #[error("Got out of bound offset for a map: {0}")]
+    OutOfBoundOffset(u32),
+}
+
+/// Result type that defaults to [`Error`] as the default error type.
+pub(crate) type Result<T, E = Error> = std::result::Result<T, E>;
 
 /// A handle to access the in-memory cached maps.
 pub(crate) type MapsHandle = Arc<Mutex<Maps>>;
@@ -113,10 +166,10 @@ trait MapsRefresh {
     fn is_uvi_stale(&self) -> bool;
 
     /// Updates the pollen maps.
-    fn set_pollen(&self, result: Option<RetrievedMaps>);
+    fn set_pollen(&self, result: Result<RetrievedMaps>);
 
     /// Updates the UV index maps.
-    fn set_uvi(&self, result: Option<RetrievedMaps>);
+    fn set_uvi(&self, result: Result<RetrievedMaps>);
 }
 
 /// Container type for all in-memory cached maps.
@@ -142,71 +195,53 @@ impl Maps {
     }
 
     /// Returns a current pollen map that marks the provided position.
-    ///
-    /// This returns [`None`] if the maps are not in the cache yet, there is no matching map for
-    /// the current moment or if the provided position is not within the bounds of the map.
-    pub(crate) fn pollen_mark(&self, position: Position) -> Option<DynamicImage> {
-        self.pollen.as_ref().and_then(|maps| {
-            let image = &maps.image;
-            let stamp = maps.timestamp_base;
-            let marked_image = map_at(
-                image,
-                stamp,
-                POLLEN_MAP_INTERVAL,
-                POLLEN_MAP_COUNT,
-                Utc::now(),
-            )?;
-            let coords = project(&marked_image, POLLEN_MAP_REF_POINTS, position)?;
+    pub(crate) fn pollen_mark(&self, position: Position) -> Result<DynamicImage> {
+        let maps = self.pollen.as_ref().ok_or(Error::NoMapsYet)?;
+        let image = &maps.image;
+        let stamp = maps.timestamp_base;
+        let marked_image = map_at(
+            image,
+            stamp,
+            POLLEN_MAP_INTERVAL,
+            POLLEN_MAP_COUNT,
+            Utc::now(),
+        )?;
+        let coords = project(&marked_image, POLLEN_MAP_REF_POINTS, position)?;
 
-            Some(mark(marked_image, coords))
-        })
+        Ok(mark(marked_image, coords))
     }
 
     /// Samples the pollen maps for the given position.
-    ///
-    /// This returns [`None`] if the maps are not in the cache yet.
-    /// Otherwise, it returns [`Some`] with a list of pollen sample, one for each map
-    /// in the series of maps.
-    pub(crate) fn pollen_samples(&self, position: Position) -> Option<Vec<Sample>> {
-        self.pollen.as_ref().and_then(|maps| {
-            let image = &maps.image;
-            let map = image.view(0, 0, image.width() / UVI_MAP_COUNT, image.height());
-            let coords = project(&*map, POLLEN_MAP_REF_POINTS, position)?;
-            let stamp = maps.timestamp_base;
+    pub(crate) fn pollen_samples(&self, position: Position) -> Result<Vec<Sample>> {
+        let maps = self.pollen.as_ref().ok_or(Error::NoMapsYet)?;
+        let image = &maps.image;
+        let map = image.view(0, 0, image.width() / UVI_MAP_COUNT, image.height());
+        let coords = project(&*map, POLLEN_MAP_REF_POINTS, position)?;
+        let stamp = maps.timestamp_base;
 
-            sample(image, stamp, POLLEN_MAP_INTERVAL, POLLEN_MAP_COUNT, coords)
-        })
+        sample(image, stamp, POLLEN_MAP_INTERVAL, POLLEN_MAP_COUNT, coords)
     }
 
     /// Returns a current UV index map that marks the provided position.
-    ///
-    /// This returns [`None`] if the maps are not in the cache yet, there is no matching map for
-    /// the current moment or if the provided position is not within the bounds of the map.
-    pub(crate) fn uvi_mark(&self, position: Position) -> Option<DynamicImage> {
-        self.uvi.as_ref().and_then(|maps| {
-            let image = &maps.image;
-            let stamp = maps.timestamp_base;
-            let marked_image = map_at(image, stamp, UVI_MAP_INTERVAL, UVI_MAP_COUNT, Utc::now())?;
-            let coords = project(&marked_image, POLLEN_MAP_REF_POINTS, position)?;
+    pub(crate) fn uvi_mark(&self, position: Position) -> Result<DynamicImage> {
+        let maps = self.uvi.as_ref().ok_or(Error::NoMapsYet)?;
+        let image = &maps.image;
+        let stamp = maps.timestamp_base;
+        let marked_image = map_at(image, stamp, UVI_MAP_INTERVAL, UVI_MAP_COUNT, Utc::now())?;
+        let coords = project(&marked_image, POLLEN_MAP_REF_POINTS, position)?;
 
-            Some(mark(marked_image, coords))
-        })
+        Ok(mark(marked_image, coords))
     }
 
     /// Samples the UV index maps for the given position.
-    ///
-    /// This returns [`None`] if the maps are not in the cache yet.
-    /// Otherwise, it returns [`Some`] with a list of UV index sample, one for each map
-    /// in the series of maps.
-    pub(crate) fn uvi_samples(&self, position: Position) -> Option<Vec<Sample>> {
-        self.uvi.as_ref().and_then(|maps| {
-            let image = &maps.image;
-            let map = image.view(0, 0, image.width() / UVI_MAP_COUNT, image.height());
-            let coords = project(&*map, UVI_MAP_REF_POINTS, position)?;
-            let stamp = maps.timestamp_base;
+    pub(crate) fn uvi_samples(&self, position: Position) -> Result<Vec<Sample>> {
+        let maps = self.uvi.as_ref().ok_or(Error::NoMapsYet)?;
+        let image = &maps.image;
+        let map = image.view(0, 0, image.width() / UVI_MAP_COUNT, image.height());
+        let coords = project(&*map, UVI_MAP_REF_POINTS, position)?;
+        let stamp = maps.timestamp_base;
 
-            sample(image, stamp, UVI_MAP_INTERVAL, UVI_MAP_COUNT, coords)
-        })
+        sample(image, stamp, UVI_MAP_INTERVAL, UVI_MAP_COUNT, coords)
     }
 }
 
@@ -263,17 +298,17 @@ impl MapsRefresh for MapsHandle {
         }
     }
 
-    fn set_pollen(&self, retrieved_maps: Option<RetrievedMaps>) {
-        if retrieved_maps.is_some() || self.is_pollen_stale() {
+    fn set_pollen(&self, retrieved_maps: Result<RetrievedMaps>) {
+        if retrieved_maps.is_ok() || self.is_pollen_stale() {
             let mut maps = self.lock().expect("Maps handle mutex was poisoned");
-            maps.pollen = retrieved_maps;
+            maps.pollen = retrieved_maps.ok();
         }
     }
 
-    fn set_uvi(&self, retrieved_maps: Option<RetrievedMaps>) {
-        if retrieved_maps.is_some() || self.is_uvi_stale() {
+    fn set_uvi(&self, retrieved_maps: Result<RetrievedMaps>) {
+        if retrieved_maps.is_ok() || self.is_uvi_stale() {
             let mut maps = self.lock().expect("Maps handle mutex was poisoned");
-            maps.uvi = retrieved_maps;
+            maps.uvi = retrieved_maps.ok();
         }
     }
 }
@@ -315,15 +350,13 @@ fn map_key_histogram() -> MapKeyHistogram {
 /// Samples the provided maps at the given (map-relative) coordinates and starting timestamp.
 /// It assumes the provided coordinates are within bounds of at least one map.
 /// The interval is the number of seconds the timestamp is bumped for each map.
-///
-/// Returns [`None`] if it encounters no known colors in any of the samples.
 fn sample<I: GenericImageView<Pixel = Rgba<u8>>>(
     image: &I,
     stamp: DateTime<Utc>,
     interval: i64,
     count: u32,
     coords: (u32, u32),
-) -> Option<Vec<Sample>> {
+) -> Result<Vec<Sample>> {
     let (x, y) = coords;
     let width = image.width() / count;
     let height = image.height();
@@ -351,7 +384,7 @@ fn sample<I: GenericImageView<Pixel = Rgba<u8>>>(
             .max_by_key(|(_color, count)| *count)
             .expect("Map key is never empty");
         if count == 0 {
-            return None;
+            return Err(Error::NoKnownColorsInSamples);
         }
 
         let score = MAP_KEY
@@ -365,7 +398,7 @@ fn sample<I: GenericImageView<Pixel = Rgba<u8>>>(
         offset += width;
     }
 
-    Some(samples)
+    Ok(samples)
 }
 
 /// A retrieved image with some metadata.
@@ -396,49 +429,44 @@ impl RetrievedMaps {
 }
 
 /// Retrieves an image from the provided URL.
-///
-/// This returns [`None`] if it fails in either performing the request, parsing the `Last-Modified`
-/// reponse HTTP header, retrieving the bytes from the image or loading and the decoding the data
-/// into [`DynamicImage`].
-async fn retrieve_image(url: Url) -> Option<RetrievedMaps> {
-    // TODO: Handle or log errors!
-    let response = reqwest::get(url).await.ok()?;
-    let mtime = response
+async fn retrieve_image(url: Url) -> Result<RetrievedMaps> {
+    let response = reqwest::get(url).await?;
+    let mtime_header = response
         .headers()
         .get(reqwest::header::LAST_MODIFIED)
-        .and_then(|dt| dt.to_str().ok())
-        .map(chrono::DateTime::parse_from_rfc2822)?
-        .map(DateTime::<Utc>::from)
-        .ok()?;
+        .ok_or(Error::MissingLastModifiedHttpHeader)?;
+    let mtime_header = mtime_header.to_str()?;
+    let mtime = DateTime::<Utc>::from(chrono::DateTime::parse_from_rfc2822(mtime_header)?);
     let timestamp_base = {
         let path = response.url().path();
-        let (_, filename) = path.rsplit_once('/')?;
-        let (timestamp_str, _) = filename.split_once("__")?;
-        let timestamp = NaiveDateTime::parse_from_str(timestamp_str, "%Y%m%d%H%M").ok()?;
+        let (_, filename) = path
+            .rsplit_once('/')
+            .ok_or_else(|| Error::InvalidImagePath(path.to_owned()))?;
+        let (timestamp_str, _) = filename
+            .split_once("__")
+            .ok_or_else(|| Error::InvalidImagePath(path.to_owned()))?;
+        let timestamp = NaiveDateTime::parse_from_str(timestamp_str, "%Y%m%d%H%M")?;
 
         DateTime::<Utc>::from_utc(timestamp, Utc)
     };
-    let bytes = response.bytes().await.ok()?;
+    let bytes = response.bytes().await?;
 
     tokio::task::spawn_blocking(move || {
-        if let Ok(image) = image::load_from_memory_with_format(&bytes, ImageFormat::Png) {
-            Some(RetrievedMaps {
+        image::load_from_memory_with_format(&bytes, ImageFormat::Png)
+            .map(|image| RetrievedMaps {
                 image,
                 mtime,
                 timestamp_base,
             })
-        } else {
-            None
-        }
+            .map_err(Error::from)
     })
-    .await
-    .ok()?
+    .await?
 }
 
 /// Retrieves the pollen maps from Buienradar.
 ///
 /// See [`POLLEN_BASE_URL`] for the base URL and [`retrieve_image`] for the retrieval function.
-async fn retrieve_pollen_maps() -> Option<RetrievedMaps> {
+async fn retrieve_pollen_maps() -> Result<RetrievedMaps> {
     let timestamp = format!("{}", chrono::Local::now().format("%y%m%d%H%M"));
     let mut url = Url::parse(POLLEN_BASE_URL).unwrap();
     url.query_pairs_mut().append_pair("timestamp", &timestamp);
@@ -450,7 +478,7 @@ async fn retrieve_pollen_maps() -> Option<RetrievedMaps> {
 /// Retrieves the UV index maps from Buienradar.
 ///
 /// See [`UVI_BASE_URL`] for the base URL and [`retrieve_image`] for the retrieval function.
-async fn retrieve_uvi_maps() -> Option<RetrievedMaps> {
+async fn retrieve_uvi_maps() -> Result<RetrievedMaps> {
     let timestamp = format!("{}", chrono::Local::now().format("%y%m%d%H%M"));
     let mut url = Url::parse(UVI_BASE_URL).unwrap();
     url.query_pairs_mut().append_pair("timestamp", &timestamp);
@@ -460,25 +488,22 @@ async fn retrieve_uvi_maps() -> Option<RetrievedMaps> {
 }
 
 /// Returns the map for the given instant.
-///
-/// This returns [`None`] if `instant` is too far in the future with respect to the number of
-/// cached maps.
 fn map_at(
     image: &DynamicImage,
     stamp: DateTime<Utc>,
     interval: i64,
     count: u32,
     instant: DateTime<Utc>,
-) -> Option<DynamicImage> {
+) -> Result<DynamicImage> {
     let duration = instant.signed_duration_since(stamp);
     let offset = (duration.num_seconds() / interval) as u32;
     // Check if out of bounds.
     if offset >= count {
-        return None;
+        return Err(Error::OutOfBoundOffset(offset));
     }
     let width = image.width() / count;
 
-    Some(image.crop_imm(offset * width, 0, width, image.height()))
+    Ok(image.crop_imm(offset * width, 0, width, image.height()))
 }
 
 /// Marks the provided coordinates on the map using a horizontal and vertical line.
@@ -499,13 +524,11 @@ fn mark(mut image: DynamicImage, coords: (u32, u32)) -> DynamicImage {
 ///
 /// This uses two reference points and a Mercator projection on the y-coordinates of those points
 /// to calculate how the map scales with respect to the provided position.
-///
-/// Returns [`None`] if the resulting coordinate is not within the bounds of the map.
 fn project<I: GenericImageView>(
     image: &I,
     ref_points: [(Position, (u32, u32)); 2],
     pos: Position,
-) -> Option<(u32, u32)> {
+) -> Result<(u32, u32)> {
     // Get the data from the reference points.
     let (ref1, (ref1_y, ref1_x)) = ref_points[0];
     let (ref2, (ref2_y, ref2_x)) = ref_points[1];
@@ -522,9 +545,9 @@ fn project<I: GenericImageView>(
     let y = ((ref2_merc_y - mercator_y(pos.lat_as_rad())) * scale_y + ref2_y as f64).round() as u32;
 
     if image.in_bounds(x, y) {
-        Some((x, y))
+        Ok((x, y))
     } else {
-        None
+        Err(Error::OutOfBoundCoords(x, y))
     }
 }
 
@@ -535,7 +558,7 @@ pub(crate) async fn mark_map(
     position: Position,
     metric: Metric,
     maps_handle: &MapsHandle,
-) -> Option<Vec<u8>> {
+) -> crate::Result<Vec<u8>> {
     use std::io::Cursor;
 
     let maps_handle = Arc::clone(maps_handle);
@@ -545,24 +568,22 @@ pub(crate) async fn mark_map(
             Metric::PAQI => maps.pollen_mark(position),
             Metric::Pollen => maps.pollen_mark(position),
             Metric::UVI => maps.uvi_mark(position),
-            _ => return None, // Unsupported metric
+            _ => return Err(crate::Error::UnsupportedMetric(metric)),
         }?;
         drop(maps);
 
         // Encode the image as PNG image data.
         let mut image_data = Cursor::new(Vec::new());
-        image
-            .write_to(
-                &mut image_data,
-                image::ImageOutputFormat::from(image::ImageFormat::Png),
-            )
-            .ok()?;
-
-        Some(image_data.into_inner())
+        match image.write_to(
+            &mut image_data,
+            image::ImageOutputFormat::from(image::ImageFormat::Png),
+        ) {
+            Ok(()) => Ok(image_data.into_inner()),
+            Err(err) => Err(crate::Error::from(Error::from(err))),
+        }
     })
     .await
-    .ok()
-    .flatten()
+    .map_err(Error::from)?
 }
 
 /// Runs a loop that keeps refreshing the maps when necessary.
@@ -575,11 +596,17 @@ pub(crate) async fn run(maps_handle: MapsHandle) {
 
         if maps_handle.needs_pollen_refresh() {
             let retrieved_maps = retrieve_pollen_maps().await;
+            if let Err(e) = retrieved_maps.as_ref() {
+                eprintln!("💥 Encountered error during pollen maps refresh: {}", e);
+            }
             maps_handle.set_pollen(retrieved_maps);
         }
 
         if maps_handle.needs_uvi_refresh() {
             let retrieved_maps = retrieve_uvi_maps().await;
+            if let Err(e) = retrieved_maps.as_ref() {
+                eprintln!("💥 Encountered error during UVI maps refresh: {}", e);
+            }
             maps_handle.set_uvi(retrieved_maps);
         }
 

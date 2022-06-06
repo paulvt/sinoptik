@@ -2,13 +2,14 @@
 //!
 //! This module contains everything related to geographic coordinate system functionality.
 
+use std::f64::consts::PI;
 use std::hash::Hash;
 
 use cached::proc_macro::cached;
 use geocoding::{Forward, Openstreetmap, Point};
 use rocket::tokio;
 
-use std::f64::consts::PI;
+use crate::{Error, Result};
 
 /// A (geocoded) position.
 ///
@@ -98,21 +99,19 @@ impl Eq for Position {}
 
 /// Resolves the geocoded position for a given address.
 ///
-/// Returns [`None`] if the address could not be geocoded or the OpenStreetMap Nomatim API could
-/// not be contacted.
-///
-/// If the result is [`Some`], it will be cached.
+/// If the result is [`Ok`], it will be cached.
 /// Note that only the 100 least recently used addresses will be cached.
-#[cached(size = 100)]
-pub(crate) async fn resolve_address(address: String) -> Option<Position> {
+#[cached(size = 100, result = true)]
+pub(crate) async fn resolve_address(address: String) -> Result<Position> {
     println!("🌍 Geocoding the position of the address: {}", address);
     tokio::task::spawn_blocking(move || {
         let osm = Openstreetmap::new();
-        let points: Vec<Point<f64>> = osm.forward(&address).ok()?;
+        let points: Vec<Point<f64>> = osm.forward(&address)?;
 
-        points.get(0).map(Position::from)
+        points
+            .get(0)
+            .ok_or(Error::NoPositionFound)
+            .map(Position::from)
     })
-    .await
-    .ok()
-    .flatten()
+    .await?
 }

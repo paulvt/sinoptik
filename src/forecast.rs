@@ -3,20 +3,21 @@
 //! This module is used to construct a [`Forecast`] for the given position by retrieving data for
 //! the requested metrics from their providers.
 
+use std::collections::BTreeMap;
+use std::fmt;
+
 use rocket::serde::Serialize;
 
 use crate::maps::MapsHandle;
 use crate::position::Position;
-use crate::providers;
 use crate::providers::buienradar::{Item as BuienradarItem, Sample as BuienradarSample};
 use crate::providers::combined::Item as CombinedItem;
 use crate::providers::luchtmeetnet::Item as LuchtmeetnetItem;
+use crate::{providers, Error};
 
 /// The current forecast for a specific location.
 ///
 /// Only the metrics asked for are included as well as the position and current time.
-///
-// TODO: Fill in missing data (#4)
 #[derive(Debug, Default, Serialize)]
 #[serde(crate = "rocket::serde")]
 pub(crate) struct Forecast {
@@ -60,6 +61,10 @@ pub(crate) struct Forecast {
     /// The UV index (when asked for).
     #[serde(rename = "UVI", skip_serializing_if = "Option::is_none")]
     uvi: Option<Vec<BuienradarSample>>,
+
+    /// Any errors that occurred.
+    #[serde(skip_serializing_if = "BTreeMap::is_empty")]
+    errors: BTreeMap<Metric, String>,
 }
 
 impl Forecast {
@@ -72,13 +77,21 @@ impl Forecast {
             ..Default::default()
         }
     }
+
+    fn log_error(&mut self, metric: Metric, error: Error) {
+        eprintln!("💥 Encountered error during forecast: {}", error);
+        self.errors.insert(metric, error.to_string());
+    }
 }
 
 /// The supported forecast metrics.
 ///
 /// This is used for selecting which metrics should be calculated & returned.
 #[allow(clippy::upper_case_acronyms)]
-#[derive(Copy, Clone, Debug, Eq, Hash, PartialEq, rocket::FromFormField)]
+#[derive(
+    Copy, Clone, Debug, Eq, Hash, Ord, PartialOrd, PartialEq, Serialize, rocket::FromFormField,
+)]
+#[serde(crate = "rocket::serde")]
 pub(crate) enum Metric {
     /// All metrics.
     #[field(value = "all")]
@@ -94,7 +107,9 @@ pub(crate) enum Metric {
     /// The particulate matter in the air.
     PM10,
     /// The pollen in the air.
+    #[serde(rename(serialize = "pollen"))]
     Pollen,
+    #[serde(rename(serialize = "precipitation"))]
     /// The precipitation.
     Precipitation,
     /// The UV index.
@@ -107,6 +122,22 @@ impl Metric {
         use Metric::*;
 
         Vec::from([AQI, NO2, O3, PAQI, PM10, Pollen, Precipitation, UVI])
+    }
+}
+
+impl fmt::Display for Metric {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Metric::All => write!(f, "All"),
+            Metric::AQI => write!(f, "AQI"),
+            Metric::NO2 => write!(f, "NO2"),
+            Metric::O3 => write!(f, "O3"),
+            Metric::PAQI => write!(f, "PAQI"),
+            Metric::PM10 => write!(f, "PM10"),
+            Metric::Pollen => write!(f, "pollen"),
+            Metric::Precipitation => write!(f, "precipitation"),
+            Metric::UVI => write!(f, "UVI"),
+        }
     }
 }
 
@@ -132,23 +163,53 @@ pub(crate) async fn forecast(
         match metric {
             // This should have been expanded to all the metrics matched below.
             Metric::All => unreachable!("The all metric should have been expanded"),
-            Metric::AQI => forecast.aqi = providers::luchtmeetnet::get(position, metric).await,
-            Metric::NO2 => forecast.no2 = providers::luchtmeetnet::get(position, metric).await,
-            Metric::O3 => forecast.o3 = providers::luchtmeetnet::get(position, metric).await,
-            Metric::PAQI => {
-                forecast.paqi = providers::combined::get(position, metric, maps_handle).await
+            Metric::AQI => {
+                forecast.aqi = providers::luchtmeetnet::get(position, metric)
+                    .await
+                    .map_err(|err| forecast.log_error(metric, err))
+                    .ok()
             }
-            Metric::PM10 => forecast.pm10 = providers::luchtmeetnet::get(position, metric).await,
+            Metric::NO2 => {
+                forecast.no2 = providers::luchtmeetnet::get(position, metric)
+                    .await
+                    .map_err(|err| forecast.log_error(metric, err))
+                    .ok()
+            }
+            Metric::O3 => {
+                forecast.o3 = providers::luchtmeetnet::get(position, metric)
+                    .await
+                    .map_err(|err| forecast.log_error(metric, err))
+                    .ok()
+            }
+            Metric::PAQI => {
+                forecast.paqi = providers::combined::get(position, metric, maps_handle)
+                    .await
+                    .map_err(|err| forecast.log_error(metric, err))
+                    .ok()
+            }
+            Metric::PM10 => {
+                forecast.pm10 = providers::luchtmeetnet::get(position, metric)
+                    .await
+                    .map_err(|err| forecast.log_error(metric, err))
+                    .ok()
+            }
             Metric::Pollen => {
-                forecast.pollen =
-                    providers::buienradar::get_samples(position, metric, maps_handle).await
+                forecast.pollen = providers::buienradar::get_samples(position, metric, maps_handle)
+                    .await
+                    .map_err(|err| forecast.log_error(metric, err))
+                    .ok()
             }
             Metric::Precipitation => {
-                forecast.precipitation = providers::buienradar::get_items(position, metric).await
+                forecast.precipitation = providers::buienradar::get_items(position, metric)
+                    .await
+                    .map_err(|err| forecast.log_error(metric, err))
+                    .ok()
             }
             Metric::UVI => {
-                forecast.uvi =
-                    providers::buienradar::get_samples(position, metric, maps_handle).await
+                forecast.uvi = providers::buienradar::get_samples(position, metric, maps_handle)
+                    .await
+                    .map_err(|err| forecast.log_error(metric, err))
+                    .ok()
             }
         }
     }

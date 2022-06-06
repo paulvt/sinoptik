@@ -10,19 +10,74 @@
 use std::sync::{Arc, Mutex};
 
 use rocket::fairing::AdHoc;
+use rocket::http::Status;
 use rocket::response::Responder;
 use rocket::serde::json::Json;
-use rocket::{get, routes, Build, Rocket, State};
+use rocket::{get, routes, Build, Request, Rocket, State};
 
-pub(crate) use self::forecast::Metric;
-use self::forecast::{forecast, Forecast};
-pub(crate) use self::maps::{mark_map, Maps, MapsHandle};
+use self::forecast::{forecast, Forecast, Metric};
+use self::maps::{mark_map, Error as MapsError, Maps, MapsHandle};
 use self::position::{resolve_address, Position};
 
 pub(crate) mod forecast;
 pub(crate) mod maps;
 pub(crate) mod position;
 pub(crate) mod providers;
+
+/// The possible provider errors that can occur.
+#[derive(Debug, thiserror::Error)]
+pub(crate) enum Error {
+    /// A CSV parse error occurred.
+    #[error("CSV parse error: {0}")]
+    CsvParse(#[from] csv::Error),
+
+    /// A geocoding error occurred.
+    #[error("Geocoding error: {0}")]
+    Geocoding(#[from] geocoding::GeocodingError),
+
+    /// An HTTP request error occurred.
+    #[error("HTTP request error: {0}")]
+    HttpRequest(#[from] reqwest::Error),
+
+    /// Failed to join a task.
+    #[error("Failed to join a task: {0}")]
+    Join(#[from] rocket::tokio::task::JoinError),
+
+    /// Failed to merge AQI & pollen items.
+    #[error("Failed to merge AQI & pollen items: {0}")]
+    Merge(#[from] self::providers::combined::MergeError),
+
+    /// Failed to retrieve or sample the maps.
+    #[error("Failed to retrieve or sample the maps: {0}")]
+    Maps(#[from] self::maps::Error),
+
+    /// No geocoded position could be found.
+    #[error("No geocoded position could be found")]
+    NoPositionFound,
+
+    /// Encountered an unsupported metric.
+    #[error("Encountered an unsupported metric: {0}")]
+    UnsupportedMetric(Metric),
+}
+
+impl<'r, 'o: 'r> rocket::response::Responder<'r, 'o> for Error {
+    fn respond_to(self, _request: &'r Request<'_>) -> rocket::response::Result<'o> {
+        eprintln!("💥 Encountered error during request: {}", self);
+
+        let status = match self {
+            Error::NoPositionFound => Status::NotFound,
+            Error::Maps(MapsError::NoMapsYet) => Status::ServiceUnavailable,
+            Error::Maps(MapsError::OutOfBoundCoords(_, _)) => Status::NotFound,
+            Error::Maps(MapsError::OutOfBoundOffset(_)) => Status::NotFound,
+            _ => Status::InternalServerError,
+        };
+
+        Err(status)
+    }
+}
+
+/// Result type that defaults to [`Error`] as the default error type.
+pub(crate) type Result<T, E = Error> = std::result::Result<T, E>;
 
 #[derive(Responder)]
 #[response(content_type = "image/png")]
@@ -34,11 +89,11 @@ async fn forecast_address(
     address: String,
     metrics: Vec<Metric>,
     maps_handle: &State<MapsHandle>,
-) -> Option<Json<Forecast>> {
+) -> Result<Json<Forecast>> {
     let position = resolve_address(address).await?;
     let forecast = forecast(position, metrics, maps_handle).await;
 
-    Some(Json(forecast))
+    Ok(Json(forecast))
 }
 
 /// Handler for retrieving the forecast for a geocoded position.
@@ -64,7 +119,7 @@ async fn map_address(
     address: String,
     metric: Metric,
     maps_handle: &State<MapsHandle>,
-) -> Option<PngImageData> {
+) -> Result<PngImageData> {
     let position = resolve_address(address).await?;
     let image_data = mark_map(position, metric, maps_handle).await;
 
@@ -80,7 +135,7 @@ async fn map_geo(
     lon: f64,
     metric: Metric,
     maps_handle: &State<MapsHandle>,
-) -> Option<PngImageData> {
+) -> Result<PngImageData> {
     let position = Position::new(lat, lon);
     let image_data = mark_map(position, metric, maps_handle).await;
 
@@ -231,7 +286,7 @@ mod tests {
         let response = client
             .get("/map?address=eindhoven&metric=pollen")
             .dispatch();
-        assert_eq!(response.status(), Status::NotFound);
+        assert_eq!(response.status(), Status::ServiceUnavailable);
 
         // Load some dummy map.
         let mut maps = maps_handle_clone
@@ -268,7 +323,7 @@ mod tests {
 
         // No maps available yet.
         let response = client.get("/map?lat=51.4&lon=5.5&metric=pollen").dispatch();
-        assert_eq!(response.status(), Status::NotFound);
+        assert_eq!(response.status(), Status::ServiceUnavailable);
 
         // Load some dummy map.
         let mut maps = maps_handle_clone

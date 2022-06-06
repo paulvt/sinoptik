@@ -11,7 +11,28 @@ pub(crate) use super::buienradar::{self, Sample as BuienradarSample};
 pub(crate) use super::luchtmeetnet::{self, Item as LuchtmeetnetItem};
 use crate::maps::MapsHandle;
 use crate::position::Position;
-use crate::Metric;
+use crate::{Error, Metric};
+
+/// The possible merge errors that can occur.
+#[allow(clippy::enum_variant_names)]
+#[derive(Debug, thiserror::Error, PartialEq)]
+pub(crate) enum MergeError {
+    /// No AQI item found.
+    #[error("No AQI item found")]
+    NoAqiItemFound,
+
+    /// No pollen item found.
+    #[error("No pollen item found")]
+    NoPollenItemFound,
+
+    /// No AQI item found within 30 minutes of first pollen item.
+    #[error("No AQI item found within 30 minutes of first pollen item")]
+    NoCloseAqiItemFound,
+
+    /// No pollen item found within 30 minutes of first AQI item.
+    #[error("No pollen item found within 30 minutes of first AQI item")]
+    NoClosePollenItemFound,
+}
 
 /// The combined data item.
 #[derive(Clone, Debug, PartialEq, Serialize)]
@@ -35,15 +56,12 @@ impl Item {
 /// Merges pollen samples and AQI items into combined items.
 ///
 /// The merging drops items from either the pollen samples or from the AQI items if they are not
-/// stamped within an hour of the first item of the latest starting series, thus lining them
+/// stamped within half an hour of the first item of the latest starting series, thus lining them
 /// before they are combined.
-///
-/// Returns [`None`] if there are no pollen samples, if there are no AQI items, or if
-/// lining them up fails.
 fn merge(
     pollen_samples: Vec<BuienradarSample>,
     aqi_items: Vec<LuchtmeetnetItem>,
-) -> Option<Vec<Item>> {
+) -> Result<Vec<Item>, MergeError> {
     let mut pollen_samples = pollen_samples;
     let mut aqi_items = aqi_items;
 
@@ -53,27 +71,36 @@ fn merge(
     aqi_items.retain(|item| item.time.signed_duration_since(now).num_seconds() > -3600);
 
     // Align the iterators based on the (hourly) timestamps!
-    let pollen_first_time = pollen_samples.first()?.time;
-    let aqi_first_time = aqi_items.first()?.time;
+    let pollen_first_time = pollen_samples
+        .first()
+        .ok_or(MergeError::NoPollenItemFound)?
+        .time;
+    let aqi_first_time = aqi_items.first().ok_or(MergeError::NoAqiItemFound)?.time;
     if pollen_first_time < aqi_first_time {
         // Drain one or more pollen samples to line up.
-        let idx = pollen_samples.iter().position(|smp| {
-            smp.time
-                .signed_duration_since(aqi_first_time)
-                .num_seconds()
-                .abs()
-                < 1800
-        })?;
+        let idx = pollen_samples
+            .iter()
+            .position(|smp| {
+                smp.time
+                    .signed_duration_since(aqi_first_time)
+                    .num_seconds()
+                    .abs()
+                    < 1800
+            })
+            .ok_or(MergeError::NoCloseAqiItemFound)?;
         pollen_samples.drain(..idx);
     } else {
         // Drain one or more AQI items to line up.
-        let idx = aqi_items.iter().position(|item| {
-            item.time
-                .signed_duration_since(pollen_first_time)
-                .num_seconds()
-                .abs()
-                < 1800
-        })?;
+        let idx = aqi_items
+            .iter()
+            .position(|item| {
+                item.time
+                    .signed_duration_since(pollen_first_time)
+                    .num_seconds()
+                    .abs()
+                    < 1800
+            })
+            .ok_or(MergeError::NoClosePollenItemFound)?;
         aqi_items.drain(..idx);
     }
 
@@ -90,37 +117,32 @@ fn merge(
         })
         .collect();
 
-    Some(items)
+    Ok(items)
 }
 
 /// Retrieves the combined forecasted items for the provided position and metric.
 ///
 /// It supports the following metric:
 /// * [`Metric::PAQI`]
-///
-/// Returns [`None`] for the combined items if retrieving data from either the Buienradar or the
-/// Luchtmeetnet provider fails or if they cannot be combined.
-///
-/// If the result is [`Some`], it will be cached for 30 minutes for the the given position and
-/// metric.
 #[cached(
     time = 1800,
     key = "(Position, Metric)",
     convert = r#"{ (position, metric) }"#,
-    option = true
+    result = true
 )]
 pub(crate) async fn get(
     position: Position,
     metric: Metric,
     maps_handle: &MapsHandle,
-) -> Option<Vec<Item>> {
+) -> Result<Vec<Item>, Error> {
     if metric != Metric::PAQI {
-        return None;
+        return Err(Error::UnsupportedMetric(metric));
     };
-    let pollen_items = buienradar::get_samples(position, Metric::Pollen, maps_handle).await;
-    let aqi_items = luchtmeetnet::get(position, Metric::AQI).await;
+    let pollen_items = buienradar::get_samples(position, Metric::Pollen, maps_handle).await?;
+    let aqi_items = luchtmeetnet::get(position, Metric::AQI).await?;
+    let items = merge(pollen_items, aqi_items)?;
 
-    merge(pollen_items?, aqi_items?)
+    Ok(items)
 }
 
 #[cfg(test)]
@@ -159,7 +181,7 @@ mod tests {
 
         // Perform a normal merge.
         let merged = super::merge(pollen_samples.clone(), aqi_items.clone());
-        assert!(merged.is_some());
+        assert!(merged.is_ok());
         let paqi = merged.unwrap();
         assert_eq!(
             paqi,
@@ -180,7 +202,7 @@ mod tests {
             })
             .collect::<Vec<_>>();
         let merged = super::merge(shifted_pollen_samples, aqi_items.clone());
-        assert!(merged.is_some());
+        assert!(merged.is_ok());
         let paqi = merged.unwrap();
         assert_eq!(paqi, Vec::from([Item::new(t_1, 2.9), Item::new(t_2, 3.0)]));
 
@@ -194,18 +216,18 @@ mod tests {
             })
             .collect::<Vec<_>>();
         let merged = super::merge(pollen_samples.clone(), shifted_aqi_items);
-        assert!(merged.is_some());
+        assert!(merged.is_ok());
         let paqi = merged.unwrap();
         assert_eq!(paqi, Vec::from([Item::new(t_1, 3.0), Item::new(t_2, 2.9)]));
 
         // The maximum sample/item should not be later then the interval the PAQI items cover.
         let merged = super::merge(pollen_samples[..3].to_vec(), aqi_items.clone());
-        assert!(merged.is_some());
+        assert!(merged.is_ok());
         let paqi = merged.unwrap();
         assert_eq!(paqi, Vec::from([Item::new(t_0, 1.1)]));
 
         let merged = super::merge(pollen_samples.clone(), aqi_items[..3].to_vec());
-        assert!(merged.is_some());
+        assert!(merged.is_ok());
         let paqi = merged.unwrap();
         assert_eq!(paqi, Vec::from([Item::new(t_0, 1.1)]));
 
@@ -219,18 +241,29 @@ mod tests {
             })
             .collect::<Vec<_>>();
         let merged = super::merge(pollen_samples.clone(), shifted_aqi_items);
-        assert_eq!(merged, None);
+        assert_eq!(merged, Err(MergeError::NoCloseAqiItemFound));
+
+        let shifted_pollen_samples = pollen_samples
+            .iter()
+            .cloned()
+            .map(|mut item| {
+                item.time = item.time.checked_add_signed(Duration::hours(6)).unwrap();
+                item
+            })
+            .collect::<Vec<_>>();
+        let merged = super::merge(shifted_pollen_samples, aqi_items.clone());
+        assert_eq!(merged, Err(MergeError::NoClosePollenItemFound));
 
         // The pollen samples list is empty, or everything is too old.
         let merged = super::merge(Vec::new(), aqi_items.clone());
-        assert_eq!(merged, None);
+        assert_eq!(merged, Err(MergeError::NoPollenItemFound));
         let merged = super::merge(pollen_samples[0..2].to_vec(), aqi_items.clone());
-        assert_eq!(merged, None);
+        assert_eq!(merged, Err(MergeError::NoPollenItemFound));
 
         // The AQI items list is empty, or everything is too old.
         let merged = super::merge(pollen_samples.clone(), Vec::new());
-        assert_eq!(merged, None);
+        assert_eq!(merged, Err(MergeError::NoAqiItemFound));
         let merged = super::merge(pollen_samples, aqi_items[0..2].to_vec());
-        assert_eq!(merged, None);
+        assert_eq!(merged, Err(MergeError::NoAqiItemFound));
     }
 }
