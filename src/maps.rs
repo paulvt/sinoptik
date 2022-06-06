@@ -35,10 +35,6 @@ pub(crate) enum Error {
     #[error("Failed to represent HTTP header as a string")]
     HttpHeaderToStr(#[from] reqwest::header::ToStrError),
 
-    /// Could not find Last-Modified header.
-    #[error("Could not find Last-Modified HTTP header")]
-    MissingLastModifiedHttpHeader,
-
     /// An image error occurred.
     #[error("Image error: {0}")]
     Image(#[from] ImageError),
@@ -431,12 +427,15 @@ impl RetrievedMaps {
 /// Retrieves an image from the provided URL.
 async fn retrieve_image(url: Url) -> Result<RetrievedMaps> {
     let response = reqwest::get(url).await?;
-    let mtime_header = response
-        .headers()
-        .get(reqwest::header::LAST_MODIFIED)
-        .ok_or(Error::MissingLastModifiedHttpHeader)?;
-    let mtime_header = mtime_header.to_str()?;
-    let mtime = DateTime::<Utc>::from(chrono::DateTime::parse_from_rfc2822(mtime_header)?);
+    let mtime = match response.headers().get(reqwest::header::LAST_MODIFIED) {
+        Some(mtime_header) => {
+            let mtime_headr_str = mtime_header.to_str()?;
+
+            DateTime::from(DateTime::parse_from_rfc2822(mtime_headr_str)?)
+        }
+        None => Utc::now(),
+    };
+
     let timestamp_base = {
         let path = response.url().path();
         let (_, filename) = path
