@@ -24,6 +24,45 @@ pub(crate) mod maps;
 pub(crate) mod position;
 pub(crate) mod providers;
 
+/// The possible provider errors that can occur.
+#[derive(Debug, thiserror::Error)]
+pub(crate) enum Error {
+    /// A CSV parse error occurred.
+    #[error("CSV parse error: {0}")]
+    CsvParse(#[from] csv::Error),
+
+    /// A geocoding error occurred.
+    #[error("Geocoding error: {0}")]
+    Geocoding(#[from] geocoding::GeocodingError),
+
+    /// An HTTP request error occurred.
+    #[error("HTTP request error: {0}")]
+    HttpRequest(#[from] reqwest::Error),
+
+    /// Failed to join a task.
+    #[error("Failed to join a task: {0}")]
+    Join(#[from] rocket::tokio::task::JoinError),
+
+    /// Failed to merge AQI & pollen items.
+    #[error("Failed to merge AQI & pollen items: {0}")]
+    Merge(#[from] self::providers::combined::MergeError),
+
+    /// Failed to retrieve or sample the maps.
+    #[error("Failed to retrieve or sample the maps: {0}")]
+    Maps(#[from] self::maps::Error),
+
+    /// No geocoded position could be found.
+    #[error("No geocoded position could be found")]
+    NoPositionFound,
+
+    /// Encountered an unsupported metric.
+    #[error("Encountered an unsupported metric: {0:?}")]
+    UnsupportedMetric(Metric),
+}
+
+/// Result type that defaults to [`Error`] as the default error type.
+pub(crate) type Result<T, E = Error> = std::result::Result<T, E>;
+
 #[derive(Responder)]
 #[response(content_type = "image/png")]
 struct PngImageData(Vec<u8>);
@@ -35,7 +74,7 @@ async fn forecast_address(
     metrics: Vec<Metric>,
     maps_handle: &State<MapsHandle>,
 ) -> Option<Json<Forecast>> {
-    let position = resolve_address(address).await?;
+    let position = resolve_address(address).await.ok()?; // FIXME: Handle error!
     let forecast = forecast(position, metrics, maps_handle).await;
 
     Some(Json(forecast))
@@ -65,10 +104,10 @@ async fn map_address(
     metric: Metric,
     maps_handle: &State<MapsHandle>,
 ) -> Option<PngImageData> {
-    let position = resolve_address(address).await?;
+    let position = resolve_address(address).await.ok()?; // FIXME: Handle error!
     let image_data = mark_map(position, metric, maps_handle).await;
 
-    image_data.map(PngImageData)
+    image_data.map(PngImageData).ok() // FIXME: Handle the error!
 }
 
 /// Handler for showing the current map with the geocoded position for a specific metric.
@@ -84,7 +123,7 @@ async fn map_geo(
     let position = Position::new(lat, lon);
     let image_data = mark_map(position, metric, maps_handle).await;
 
-    image_data.map(PngImageData)
+    image_data.map(PngImageData).ok() // FIXME: Handle the error!
 }
 
 /// Sets up Rocket.

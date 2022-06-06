@@ -14,7 +14,7 @@ use rocket::serde::{Deserialize, Serialize};
 
 use crate::maps::MapsHandle;
 use crate::position::Position;
-use crate::Metric;
+use crate::{Error, Metric, Result};
 
 /// The base URL for the Buienradar API.
 const BUIENRADAR_BASE_URL: &str = "https://gpsgadget.buienradar.nl/data/raintext";
@@ -128,28 +128,23 @@ fn fix_items_day_boundary(items: Vec<Item>) -> Vec<Item> {
 
 /// Retrieves the Buienradar forecasted precipitation items for the provided position.
 ///
-/// Returns [`None`] if retrieval or deserialization fails.
-///
-/// If the result is [`Some`] it will be cached for 5 minutes for the the given position.
-#[cached(time = 300, option = true)]
-async fn get_precipitation(position: Position) -> Option<Vec<Item>> {
+/// If the result is [`Ok`] it will be cached for 5 minutes for the the given position.
+#[cached(time = 300, result = true)]
+async fn get_precipitation(position: Position) -> Result<Vec<Item>> {
     let mut url = Url::parse(BUIENRADAR_BASE_URL).unwrap();
     url.query_pairs_mut()
         .append_pair("lat", &position.lat_as_str(2))
         .append_pair("lon", &position.lon_as_str(2));
 
     println!("▶️  Retrieving Buienradar data from: {url}");
-    let response = reqwest::get(url).await.ok()?;
-    let output = match response.error_for_status() {
-        Ok(res) => res.text().await.ok()?,
-        Err(_err) => return None,
-    };
+    let response = reqwest::get(url).await?;
+    let output = response.error_for_status()?.text().await?;
 
     let mut rdr = ReaderBuilder::new()
         .has_headers(false)
         .delimiter(b'|')
         .from_reader(output.as_bytes());
-    let items: Vec<Item> = rdr.deserialize().collect::<Result<_, _>>().ok()?;
+    let items: Vec<Item> = rdr.deserialize().collect::<Result<_, _>>()?;
 
     // Check if the first item stamp is (timewise) later than the last item stamp.
     // In this case `parse_time` interpreted e.g. 23:00 and later 0:30 in the same day and some
@@ -160,46 +155,44 @@ async fn get_precipitation(position: Position) -> Option<Vec<Item>> {
         .map(|(it1, it2)| it1.time > it2.time)
         == Some(true)
     {
-        Some(fix_items_day_boundary(items))
+        Ok(fix_items_day_boundary(items))
     } else {
-        Some(items)
+        Ok(items)
     }
 }
 
 /// Retrieves the Buienradar forecasted pollen samples for the provided position.
 ///
-/// Returns [`None`] if the sampling fails.
-///
-/// If the result is [`Some`] if will be cached for 1 hour for the given position.
+/// If the result is [`Ok`] if will be cached for 1 hour for the given position.
 #[cached(
     time = 3_600,
     key = "Position",
     convert = r#"{ position }"#,
-    option = true
+    result = true
 )]
-async fn get_pollen(position: Position, maps_handle: &MapsHandle) -> Option<Vec<Sample>> {
+async fn get_pollen(position: Position, maps_handle: &MapsHandle) -> Result<Vec<Sample>> {
     maps_handle
         .lock()
         .expect("Maps handle mutex was poisoned")
         .pollen_samples(position)
+        .map_err(Into::into)
 }
 
 /// Retrieves the Buienradar forecasted UV index samples for the provided position.
 ///
-/// Returns [`None`] if the sampling fails.
-///
-/// If the result is [`Some`] if will be cached for 1 day for the given position.
+/// If the result is [`Ok`] if will be cached for 1 day for the given position.
 #[cached(
     time = 86_400,
     key = "Position",
     convert = r#"{ position }"#,
-    option = true
+    result = true
 )]
-async fn get_uvi(position: Position, maps_handle: &MapsHandle) -> Option<Vec<Sample>> {
+async fn get_uvi(position: Position, maps_handle: &MapsHandle) -> Result<Vec<Sample>> {
     maps_handle
         .lock()
         .expect("Maps handle mutex was poisoned")
         .uvi_samples(position)
+        .map_err(Into::into)
 }
 
 /// Retrieves the Buienradar forecasted map samples for the provided position.
@@ -207,18 +200,15 @@ async fn get_uvi(position: Position, maps_handle: &MapsHandle) -> Option<Vec<Sam
 /// It only supports the following metric:
 /// * [`Metric::Pollen`]
 /// * [`Metric::UVI`]
-///
-/// Returns [`None`] if retrieval or deserialization fails, or if the metric is not supported by
-/// this provider.
 pub(crate) async fn get_samples(
     position: Position,
     metric: Metric,
     maps_handle: &MapsHandle,
-) -> Option<Vec<Sample>> {
+) -> Result<Vec<Sample>> {
     match metric {
         Metric::Pollen => get_pollen(position, maps_handle).await,
         Metric::UVI => get_uvi(position, maps_handle).await,
-        _ => None,
+        _ => Err(Error::UnsupportedMetric(metric)),
     }
 }
 
@@ -227,11 +217,9 @@ pub(crate) async fn get_samples(
 /// It only supports the following metric:
 /// * [`Metric::Precipitation`]
 ///
-/// Returns [`None`] if retrieval or deserialization fails, or if the metric is not supported by
-/// this provider.
-pub(crate) async fn get_items(position: Position, metric: Metric) -> Option<Vec<Item>> {
+pub(crate) async fn get_items(position: Position, metric: Metric) -> Result<Vec<Item>> {
     match metric {
         Metric::Precipitation => get_precipitation(position).await,
-        _ => None,
+        _ => Err(Error::UnsupportedMetric(metric)),
     }
 }

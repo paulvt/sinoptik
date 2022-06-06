@@ -9,7 +9,7 @@ use reqwest::Url;
 use rocket::serde::{Deserialize, Serialize};
 
 use crate::position::Position;
-use crate::Metric;
+use crate::{Error, Metric, Result};
 
 /// The base URL for the Luchtmeetnet API.
 const LUCHTMEETNET_BASE_URL: &str = "https://api.luchtmeetnet.nl/open_api/concentrations";
@@ -54,20 +54,14 @@ impl Item {
 /// * [`Metric::NO2`]
 /// * [`Metric::O3`]
 /// * [`Metric::PM10`]
-///
-/// Returns [`None`] if retrieval or deserialization fails, or if the metric is not supported by
-/// this provider.
-///
-/// If the result is [`Some`] it will be cached for 30 minutes for the the given position and
-/// metric.
-#[cached(time = 1800, option = true)]
-pub(crate) async fn get(position: Position, metric: Metric) -> Option<Vec<Item>> {
+#[cached(time = 1800, result = true)]
+pub(crate) async fn get(position: Position, metric: Metric) -> Result<Vec<Item>> {
     let formula = match metric {
         Metric::AQI => "lki",
         Metric::NO2 => "no2",
         Metric::O3 => "o3",
         Metric::PM10 => "pm10",
-        _ => return None, // Unsupported metric
+        _ => return Err(Error::UnsupportedMetric(metric)),
     };
     let mut url = Url::parse(LUCHTMEETNET_BASE_URL).unwrap();
     url.query_pairs_mut()
@@ -76,11 +70,8 @@ pub(crate) async fn get(position: Position, metric: Metric) -> Option<Vec<Item>>
         .append_pair("longitude", &position.lon_as_str(5));
 
     println!("▶️  Retrieving Luchtmeetnet data from: {url}");
-    let response = reqwest::get(url).await.ok()?;
-    let root: Container = match response.error_for_status() {
-        Ok(res) => res.json().await.ok()?,
-        Err(_err) => return None,
-    };
+    let response = reqwest::get(url).await?;
+    let root: Container = response.error_for_status()?.json().await?;
 
     // Filter items that are older than one hour before now. They seem to occur sometimes?
     let too_old = Utc::now() - Duration::hours(1);
@@ -90,5 +81,5 @@ pub(crate) async fn get(position: Position, metric: Metric) -> Option<Vec<Item>>
         .filter(|item| item.time > too_old)
         .collect();
 
-    Some(items)
+    Ok(items)
 }

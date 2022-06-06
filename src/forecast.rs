@@ -131,24 +131,33 @@ pub(crate) async fn forecast(
     for metric in metrics {
         match metric {
             // This should have been expanded to all the metrics matched below.
+            // FIXME: Handle the errors!
             Metric::All => unreachable!("The all metric should have been expanded"),
-            Metric::AQI => forecast.aqi = providers::luchtmeetnet::get(position, metric).await,
-            Metric::NO2 => forecast.no2 = providers::luchtmeetnet::get(position, metric).await,
-            Metric::O3 => forecast.o3 = providers::luchtmeetnet::get(position, metric).await,
+            Metric::AQI => forecast.aqi = providers::luchtmeetnet::get(position, metric).await.ok(),
+            Metric::NO2 => forecast.no2 = providers::luchtmeetnet::get(position, metric).await.ok(),
+            Metric::O3 => forecast.o3 = providers::luchtmeetnet::get(position, metric).await.ok(),
             Metric::PAQI => {
-                forecast.paqi = providers::combined::get(position, metric, maps_handle).await
+                forecast.paqi = providers::combined::get(position, metric, maps_handle)
+                    .await
+                    .ok()
             }
-            Metric::PM10 => forecast.pm10 = providers::luchtmeetnet::get(position, metric).await,
+            Metric::PM10 => {
+                forecast.pm10 = providers::luchtmeetnet::get(position, metric).await.ok()
+            }
             Metric::Pollen => {
-                forecast.pollen =
-                    providers::buienradar::get_samples(position, metric, maps_handle).await
+                forecast.pollen = providers::buienradar::get_samples(position, metric, maps_handle)
+                    .await
+                    .ok()
             }
             Metric::Precipitation => {
-                forecast.precipitation = providers::buienradar::get_items(position, metric).await
+                forecast.precipitation = providers::buienradar::get_items(position, metric)
+                    .await
+                    .ok()
             }
             Metric::UVI => {
-                forecast.uvi =
-                    providers::buienradar::get_samples(position, metric, maps_handle).await
+                forecast.uvi = providers::buienradar::get_samples(position, metric, maps_handle)
+                    .await
+                    .ok()
             }
         }
     }
