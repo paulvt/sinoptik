@@ -596,11 +596,17 @@ pub(crate) async fn run(maps_handle: MapsHandle) {
 
         if maps_handle.needs_pollen_refresh() {
             let retrieved_maps = retrieve_pollen_maps().await;
+            if let Err(e) = retrieved_maps.as_ref() {
+                eprintln!("💥 Encountered error during pollen maps refresh: {}", e);
+            }
             maps_handle.set_pollen(retrieved_maps);
         }
 
         if maps_handle.needs_uvi_refresh() {
             let retrieved_maps = retrieve_uvi_maps().await;
+            if let Err(e) = retrieved_maps.as_ref() {
+                eprintln!("💥 Encountered error during UVI maps refresh: {}", e);
+            }
             maps_handle.set_uvi(retrieved_maps);
         }
 
