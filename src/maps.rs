@@ -356,6 +356,9 @@ fn sample<I: GenericImageView<Pixel = Rgba<u8>>>(
     let (x, y) = coords;
     let width = image.width() / count;
     let height = image.height();
+    if x > width || y > height {
+        return Err(Error::OutOfBoundCoords(x, y));
+    }
     let max_sample_width = (width - x).min(MAP_SAMPLE_SIZE[0]);
     let max_sample_height = (height - y).min(MAP_SAMPLE_SIZE[1]);
     let mut samples = Vec::with_capacity(count as usize);
