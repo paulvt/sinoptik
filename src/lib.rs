@@ -10,13 +10,13 @@
 use std::sync::{Arc, Mutex};
 
 use rocket::fairing::AdHoc;
+use rocket::http::Status;
 use rocket::response::Responder;
 use rocket::serde::json::Json;
-use rocket::{get, routes, Build, Rocket, State};
+use rocket::{get, routes, Build, Request, Rocket, State};
 
-pub(crate) use self::forecast::Metric;
-use self::forecast::{forecast, Forecast};
-pub(crate) use self::maps::{mark_map, Maps, MapsHandle};
+use self::forecast::{forecast, Forecast, Metric};
+use self::maps::{mark_map, Error as MapsError, Maps, MapsHandle};
 use self::position::{resolve_address, Position};
 
 pub(crate) mod forecast;
@@ -56,8 +56,24 @@ pub(crate) enum Error {
     NoPositionFound,
 
     /// Encountered an unsupported metric.
-    #[error("Encountered an unsupported metric: {0:?}")]
+    #[error("Encountered an unsupported metric: {0}")]
     UnsupportedMetric(Metric),
+}
+
+impl<'r, 'o: 'r> rocket::response::Responder<'r, 'o> for Error {
+    fn respond_to(self, _request: &'r Request<'_>) -> rocket::response::Result<'o> {
+        eprintln!("💥 Encountered error during request: {}", self);
+
+        let status = match self {
+            Error::NoPositionFound => Status::NotFound,
+            Error::Maps(MapsError::NoMapsYet) => Status::ServiceUnavailable,
+            Error::Maps(MapsError::OutOfBoundCoords(_, _)) => Status::NotFound,
+            Error::Maps(MapsError::OutOfBoundOffset(_)) => Status::NotFound,
+            _ => Status::InternalServerError,
+        };
+
+        Err(status)
+    }
 }
 
 /// Result type that defaults to [`Error`] as the default error type.
@@ -73,11 +89,11 @@ async fn forecast_address(
     address: String,
     metrics: Vec<Metric>,
     maps_handle: &State<MapsHandle>,
-) -> Option<Json<Forecast>> {
-    let position = resolve_address(address).await.ok()?; // FIXME: Handle error!
+) -> Result<Json<Forecast>> {
+    let position = resolve_address(address).await?;
     let forecast = forecast(position, metrics, maps_handle).await;
 
-    Some(Json(forecast))
+    Ok(Json(forecast))
 }
 
 /// Handler for retrieving the forecast for a geocoded position.
@@ -103,11 +119,11 @@ async fn map_address(
     address: String,
     metric: Metric,
     maps_handle: &State<MapsHandle>,
-) -> Option<PngImageData> {
-    let position = resolve_address(address).await.ok()?; // FIXME: Handle error!
+) -> Result<PngImageData> {
+    let position = resolve_address(address).await?;
     let image_data = mark_map(position, metric, maps_handle).await;
 
-    image_data.map(PngImageData).ok() // FIXME: Handle the error!
+    image_data.map(PngImageData)
 }
 
 /// Handler for showing the current map with the geocoded position for a specific metric.
@@ -119,11 +135,11 @@ async fn map_geo(
     lon: f64,
     metric: Metric,
     maps_handle: &State<MapsHandle>,
-) -> Option<PngImageData> {
+) -> Result<PngImageData> {
     let position = Position::new(lat, lon);
     let image_data = mark_map(position, metric, maps_handle).await;
 
-    image_data.map(PngImageData).ok() // FIXME: Handle the error!
+    image_data.map(PngImageData)
 }
 
 /// Sets up Rocket.
@@ -270,7 +286,7 @@ mod tests {
         let response = client
             .get("/map?address=eindhoven&metric=pollen")
             .dispatch();
-        assert_eq!(response.status(), Status::NotFound);
+        assert_eq!(response.status(), Status::ServiceUnavailable);
 
         // Load some dummy map.
         let mut maps = maps_handle_clone
@@ -307,7 +323,7 @@ mod tests {
 
         // No maps available yet.
         let response = client.get("/map?lat=51.4&lon=5.5&metric=pollen").dispatch();
-        assert_eq!(response.status(), Status::NotFound);
+        assert_eq!(response.status(), Status::ServiceUnavailable);
 
         // Load some dummy map.
         let mut maps = maps_handle_clone

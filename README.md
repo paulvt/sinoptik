@@ -139,7 +139,7 @@ The PAQI (pollen/air quality index) metric is a special combined metric.
 If selected, it merges items from the AQI and pollen metric into `PAQI` by
 selecting the maximum value for each hour:
 
-``` json
+```json
 {
   "lat": 52.0905169,
   "lon": 5.1109709,
@@ -155,6 +155,38 @@ selecting the maximum value for each hour:
     },
     ...
   ]
+}
+```
+
+#### Errors
+
+If geocoding of an address is requested but fails, a not found error is returned (HTTP 404).
+with the following body (this will change in the future):
+
+```json
+{
+  "error": {
+    "code": 404,
+    "reason": "Not Found",
+    "description": "The requested resource could not be found."
+  }
+}
+```
+
+If for any specific metric an error occurs, the list with forecast items will be absent.
+However, the `errors` field will contain the error message for each failed metric.
+For example, say Buienradar is down and precipitation forecast items can not be
+retrieved:
+
+```json
+{
+  "lat": 52.0905169,
+  "lon": 5.1109709,
+  "time": 1654524574,
+  ...
+  "errors": {
+    "precipitation": "HTTP request error: error sending request for url (https://gpsgadget.buienradar.nl/data/raintext?lat=52.09&lon=5.11): error trying to connect: tcp connect error: Connection refused (os error 111)"
+  }
 }
 ```
 
@@ -182,7 +214,8 @@ GET /map?lat=52.0902&lon=5.1114&metric=pollen
 
 The response is a PNG image with a crosshair drawn on the map. If geocoding of
 an address fails or if the position is out of bounds of the map, nothing is
-returned (HTTP 404).
+returned (HTTP 404). If the maps cannot/have not been downloaded or cached yet,
+a service unavailable error is returned (HTTP 503).
 
 ## License
 
