@@ -2124,7 +2124,7 @@ dependencies = [
 
 [[package]]
 name = "sinoptik"
-version = "0.2.3"
+version = "0.2.4"
 dependencies = [
  "assert_float_eq",
  "assert_matches",
