@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.4] - 2022-07-05
+
+### Added
+
+* Add proper error handling and show them via the API (#25)
+
+### Changed
+
+* Run map refresher as an ad hoc liftoff fairing in Rocket
+* Changed emojis in log output
+
+### Removed
+
+* Removed `AQI_max` and `pollen_max` from the forecast JSON introduced in
+  version 0.2.0
+
+### Fixed
+
+* Verify sample coordinate bounds (#24)
+* Default to current time if `Last-Modified` HTTP header is missing for
+  retrieved maps
+
 ## [0.2.3] - 2022-05-21
 
 ### Fixed
@@ -47,7 +69,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Initial release.
 
-[Unreleased]: https://git.luon.net/paul/sinoptik/compare/v0.2.3...HEAD
+[Unreleased]: https://git.luon.net/paul/sinoptik/compare/v0.2.4...HEAD
+[0.2.4]: https://git.luon.net/paul/sinoptik/compare/v0.2.3...v0.2.4
 [0.2.3]: https://git.luon.net/paul/sinoptik/compare/v0.2.2...v0.2.3
 [0.2.2]: https://git.luon.net/paul/sinoptik/compare/v0.2.1...v0.2.2
 [0.2.1]: https://git.luon.net/paul/sinoptik/compare/v0.2.0...v0.2.1
