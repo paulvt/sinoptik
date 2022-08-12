@@ -4,9 +4,8 @@
 //! and <https://www.buienradar.nl/overbuienradar/gratis-weerdata>.
 
 use cached::proc_macro::cached;
-use chrono::offset::TimeZone;
 use chrono::serde::ts_seconds;
-use chrono::{DateTime, Datelike, Duration, NaiveTime, ParseError, Utc};
+use chrono::{DateTime, Datelike, Duration, NaiveTime, ParseError, TimeZone, Utc};
 use chrono_tz::Europe;
 use csv::ReaderBuilder;
 use reqwest::Url;
