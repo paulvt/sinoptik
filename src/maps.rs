@@ -393,7 +393,7 @@ fn sample<I: GenericImageView<Pixel = Rgba<u8>>>(
             .expect("Maximum color is always a map key color") as u8;
 
         samples.push(Sample { time, score });
-        time = time + chrono::Duration::seconds(interval as i64);
+        time += chrono::Duration::seconds(interval);
         offset += width;
     }
 

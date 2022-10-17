@@ -106,7 +106,7 @@ fn fix_items_day_boundary(items: Vec<Item>) -> Vec<Item> {
             .into_iter()
             .map(|mut item| {
                 if item.time > noon {
-                    item.time = item.time - Duration::days(1)
+                    item.time -= Duration::days(1)
                 }
                 item
             })
@@ -117,7 +117,7 @@ fn fix_items_day_boundary(items: Vec<Item>) -> Vec<Item> {
             .into_iter()
             .map(|mut item| {
                 if item.time < noon {
-                    item.time = item.time + Duration::days(1)
+                    item.time += Duration::days(1)
                 }
                 item
             })
