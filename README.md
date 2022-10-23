@@ -67,7 +67,6 @@ GET /forecast?address=Stationsplein,Utrecht&metrics[]=all
 
 or directly by using its geocoded position:
 
-
 ```http
 GET /forecast?lat=52.0902&lon=5.1114&metrics[]=all
 ```
@@ -75,8 +74,8 @@ GET /forecast?lat=52.0902&lon=5.1114&metrics[]=all
 ### Metrics
 
 When querying, the metrics need to be selected. It can be one of: `AQI`, `NO2`,
-`O3`, `PAQI`, `PM10`, `pollen`, `precipitation` or `UVI`. If you use metric `all`, or
-`all` is part of the selected metrics, all metrics will be retrieved.
+`O3`, `PAQI`, `PM10`, `pollen`, `precipitation` or `UVI`. If you use metric
+`all`, or `all` is part of the selected metrics, all metrics will be retrieved.
 Note that the parameter "array" notation as well as the repeated parameter
 notation are supported. For example:
 
@@ -86,7 +85,7 @@ GET /forecast?address=Stationsplein,Utrecht&metrics=AQI&metrics=pollen
 GET /forecast?address=Stationsplein,Utrecht&metrics=all
 ```
 
-### Response
+### Forecast responses
 
 The response of the API is a JSON object that contains three fixed fields:
 
@@ -160,8 +159,8 @@ selecting the maximum value for each hour:
 
 #### Errors
 
-If geocoding of an address is requested but fails, a not found error is returned (HTTP 404).
-with the following body (this will change in the future):
+If geocoding of an address is requested but fails, a not found error is
+returned (HTTP 404). with the following body (this will change in the future):
 
 ```json
 {
@@ -173,10 +172,10 @@ with the following body (this will change in the future):
 }
 ```
 
-If for any specific metric an error occurs, the list with forecast items will be absent.
-However, the `errors` field will contain the error message for each failed metric.
-For example, say Buienradar is down and precipitation forecast items can not be
-retrieved:
+If for any specific metric an error occurs, the list with forecast items will
+be absent. However, the `errors` field will contain the error message for each
+failed metric. For example, say Buienradar is down and precipitation forecast
+items can not be retrieved:
 
 ```json
 {
@@ -210,7 +209,7 @@ or directly by using its geocoded position:
 GET /map?lat=52.0902&lon=5.1114&metric=pollen
 ```
 
-### Response
+### Map responses
 
 The response is a PNG image with a crosshair drawn on the map. If geocoding of
 an address fails or if the position is out of bounds of the map, nothing is
