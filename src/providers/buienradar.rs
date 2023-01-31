@@ -65,10 +65,10 @@ impl TryFrom<Row> for Item {
 /// time zone.
 fn parse_time(t: &str) -> Result<DateTime<Utc>, ParseError> {
     // First, get the current date in the Europe/Amsterdam time zone.
-    let today = Utc::now().with_timezone(&Europe::Amsterdam).date();
+    let today = Utc::now().with_timezone(&Europe::Amsterdam).date_naive();
     // Then, parse the time and interpret it relative to "today".
     let ntime = NaiveTime::parse_from_str(t, "%H:%M")?;
-    let ndtime = today.naive_local().and_time(ntime);
+    let ndtime = today.and_time(ntime);
     // Finally, interpret the naive date/time in the Europe/Amsterdam time zone and convert it to
     // the UTC time zone.
     let ldtime = Europe::Amsterdam.from_local_datetime(&ndtime).unwrap();
@@ -97,8 +97,9 @@ fn fix_items_day_boundary(items: Vec<Item>) -> Vec<Item> {
     let now = Utc::now().with_timezone(&Europe::Amsterdam);
     // Use noon on the same day as "now" as a comparison moment.
     let noon = Europe::Amsterdam
-        .ymd(now.year(), now.month(), now.day())
-        .and_hms(12, 0, 0);
+        .with_ymd_and_hms(now.year(), now.month(), now.day(), 12, 0, 0)
+        .single()
+        .expect("Invalid date: input date is invalid or not unambiguous");
 
     if now < noon {
         // It is still before noon, so bump timestamps after noon a day back.
