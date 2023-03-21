@@ -20,6 +20,9 @@ jobs:
           toolchain: stable
           override: true
 
+      - name: Use sparse Cargo index for crates.io
+        run: echo -e '[registries.crates-io]\nprotocol = "sparse"' >> /root/.cargo/config.toml
+
       - name: Run cargo check
         uses: https://github.com/actions-rs/cargo@v1
         with:
@@ -38,6 +41,9 @@ jobs:
           profile: minimal
           toolchain: stable
           override: true
+
+      - name: Use sparse Cargo index for crates.io
+        run: echo -e '[registries.crates-io]\nprotocol = "sparse"' >> /root/.cargo/config.toml
 
       - name: Run cargo test
         uses: https://github.com/actions-rs/cargo@v1
@@ -59,6 +65,9 @@ jobs:
           toolchain: stable
           override: true
           components: rustfmt, clippy
+
+      - name: Use sparse Cargo index for crates.io
+        run: echo -e '[registries.crates-io]\nprotocol = "sparse"' >> /root/.cargo/config.toml
 
       - name: Run cargo fmt
         uses: https://github.com/actions-rs/cargo@v1
