@@ -163,7 +163,7 @@ fn rocket(maps_handle: MapsHandle) -> Rocket<Build> {
         .attach(AdHoc::on_liftoff("Maps refresher", |_| {
             Box::pin(async move {
                 // We don't care about the join handle nor error results?
-                let _ = rocket::tokio::spawn(maps_refresher);
+                let _refresher = rocket::tokio::spawn(maps_refresher);
             })
         }))
 }
