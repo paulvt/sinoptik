@@ -213,7 +213,6 @@ mod tests {
         let response = client.get("/forecast?address=eindhoven").dispatch();
         assert_eq!(response.status(), Status::Ok);
         let json = response.into_json::<JsonValue>().expect("Not valid JSON");
-        dbg!(&json);
         assert_float_absolute_eq!(json["lat"].as_f64().unwrap(), 51.44855695, 1e-8);
         assert_float_absolute_eq!(json["lon"].as_f64().unwrap(), 5.45012252, 1e-8);
         assert_matches!(json["time"], JsonValue::Number(_));
