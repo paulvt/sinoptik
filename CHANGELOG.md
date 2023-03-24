@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.5]
+
+### Added
+
+* Add Gitea Actions workflow for cargo
+
+### Changed
+
+* Updated dependencies on `cached`, `chrono-tz` and `geocoding`
+
+### Fixed
+
+* Fix float comparison in tests
+* Fix clippy issues
+
+### Security
+
+* Update dependencies ([RUSTSEC-2023-0018](https://rustsec.org/advisories/RUSTSEC-2023-0018.html))
+
 ## [0.2.4] - 2022-07-05
 
 ### Added
@@ -69,7 +88,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Initial release.
 
-[Unreleased]: https://git.luon.net/paul/sinoptik/compare/v0.2.4...HEAD
+[Unreleased]: https://git.luon.net/paul/sinoptik/compare/v0.2.5...HEAD
+[0.2.5]: https://git.luon.net/paul/sinoptik/compare/v0.2.4...v0.2.5
 [0.2.4]: https://git.luon.net/paul/sinoptik/compare/v0.2.3...v0.2.4
 [0.2.3]: https://git.luon.net/paul/sinoptik/compare/v0.2.2...v0.2.3
 [0.2.2]: https://git.luon.net/paul/sinoptik/compare/v0.2.1...v0.2.2
