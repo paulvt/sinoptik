@@ -1,0 +1,48 @@
+name: "Check, lint and test using Cargo"
+
+on:
+  - pull_request
+  - push
+  - workflow_dispatch
+
+jobs:
+  check_lint:
+    name: Check, lint and test
+    runs-on: debian-latest
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v3
+
+      - name: Install stable toolchain
+        uses: https://github.com/actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+          components: rustfmt, clippy
+
+      - name: Use sparse Cargo index for crates.io
+        run: echo -e '[registries.crates-io]\nprotocol = "sparse"' >> /root/.cargo/config.toml
+
+      - name: Run cargo check
+        uses: https://github.com/actions-rs/cargo@v1
+        with:
+          command: check
+
+      - name: Run cargo clippy
+        uses: https://github.com/actions-rs/cargo@v1
+        with:
+          command: clippy
+          args: -- -D warnings
+
+      - name: Run cargo fmt
+        uses: https://github.com/actions-rs/cargo@v1
+        with:
+          command: fmt
+          args: --all -- --check
+
+      - name: Run cargo test
+        uses: https://github.com/actions-rs/cargo@v1
+        with:
+          command: test
+          args: --all-features
