@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.6]
+
+### Added
+
+* Add full release Gitea Actions workflow
+
+### Changed
+
+* Simplify Gitea Actions check, lint and test workflow
+* Improve no known map colors found error description
+
+### Fixed
+
+* Update coordinates of Eindhoven in tests (Nomatim changed its geocoding)
+* Increase sampling area to 31×31 pixels (#26)
+* Switch to new Buienradar color scheme/maps key (#27)
+
 ## [0.2.5]
 
 ### Added
@@ -88,7 +105,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Initial release.
 
-[Unreleased]: https://git.luon.net/paul/sinoptik/compare/v0.2.5...HEAD
+[Unreleased]: https://git.luon.net/paul/sinoptik/compare/v0.2.6...HEAD
+[0.2.6]: https://git.luon.net/paul/sinoptik/compare/v0.2.5...v0.2.6
 [0.2.5]: https://git.luon.net/paul/sinoptik/compare/v0.2.4...v0.2.5
 [0.2.4]: https://git.luon.net/paul/sinoptik/compare/v0.2.3...v0.2.4
 [0.2.3]: https://git.luon.net/paul/sinoptik/compare/v0.2.2...v0.2.3
