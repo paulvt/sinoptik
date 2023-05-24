@@ -47,8 +47,8 @@ pub(crate) enum Error {
     #[error("Failed to join a task: {0}")]
     Join(#[from] rocket::tokio::task::JoinError),
 
-    /// Found no known (map key) colors in samples.
-    #[error("Found not known colors in samples")]
+    /// Did not find any known (map key) colors in samples.
+    #[error("Did not find any known colors in samples")]
     NoKnownColorsInSamples,
 
     /// No maps found (yet).
