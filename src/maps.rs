@@ -92,8 +92,8 @@ const MAP_KEY: [[u8; 3]; 10] = [
 
 /// The Buienradar map sample size.
 ///
-/// Determiess the number of pixels in width/height that is samples around the sampling coordinate.
-const MAP_SAMPLE_SIZE: [u32; 2] = [11, 11];
+/// Determines the number of pixels in width/height that is sampled around the sampling coordinate.
+const MAP_SAMPLE_SIZE: [u32; 2] = [31, 31];
 
 /// The interval between map refreshes (in seconds).
 const REFRESH_INTERVAL: tokio::time::Duration = tokio::time::Duration::from_secs(60);
