@@ -189,7 +189,7 @@ mod tests {
     use super::*;
 
     fn maps_stub(map_count: u32) -> RetrievedMaps {
-        let map_color = Rgba::from([0x00, 0x8A, 0x00, 0xFF]); // First color from map key.
+        let map_color = Rgba::from([73, 218, 33, 255]); // First color from map key.
         let image =
             DynamicImage::ImageRgba8(RgbaImage::from_pixel(820 * map_count, 988, map_color));
 
