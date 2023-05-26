@@ -79,7 +79,7 @@ jobs:
         uses: https://github.com/actions-rs/cargo@v1
         env:
           # This needs to be provided for the repository; no login necessary as a result.
-          CARGO_REGISTRIES_LUON_TOKEN: '${{ secrets.CARGO_REGISTRIES_LUON_TOKEN }}'
+          CARGO_REGISTRIES_LUON_TOKEN: '${{ secrets.CARGO_TOKEN }}'
         with:
           command: publish
           args: --registry luon
