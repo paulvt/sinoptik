@@ -7,7 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.2.6]
+## [0.2.7] - 2023-05-26
+
+### Fixed
+
+* Switch back to the original Buienradar color scheme/maps key (#27)
+* Fix the token used to publish the crate to the Cargo package index
+
+## [0.2.6] - 2023-05-24
 
 ### Added
 
@@ -24,7 +31,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Increase sampling area to 31×31 pixels (#26)
 * Switch to new Buienradar color scheme/maps key (#27)
 
-## [0.2.5]
+## [0.2.5] - 2023-03-24
 
 ### Added
 
@@ -105,7 +112,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Initial release.
 
-[Unreleased]: https://git.luon.net/paul/sinoptik/compare/v0.2.6...HEAD
+[Unreleased]: https://git.luon.net/paul/sinoptik/compare/v0.2.7...HEAD
+[0.2.7]: https://git.luon.net/paul/sinoptik/compare/v0.2.6...v0.2.7
 [0.2.6]: https://git.luon.net/paul/sinoptik/compare/v0.2.5...v0.2.6
 [0.2.5]: https://git.luon.net/paul/sinoptik/compare/v0.2.4...v0.2.5
 [0.2.4]: https://git.luon.net/paul/sinoptik/compare/v0.2.3...v0.2.4
