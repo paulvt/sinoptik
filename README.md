@@ -216,6 +216,31 @@ an address fails or if the position is out of bounds of the map, nothing is
 returned (HTTP 404). If the maps cannot/have not been downloaded or cached yet,
 a service unavailable error is returned (HTTP 503).
 
+## Version endpoint
+
+The `/version` endpoint provides information of the current version and build
+of the service.  This can be used to check if it needs to be updated.
+Again, there is no path and no query parameters, just:
+
+```http
+GET /version
+```
+
+### Version responses
+
+The response uses the JSON format and typically looks like this:
+
+```json
+{
+  "version": "0.2.7",
+  "timestamp": "2023-05-29T13:34:34.701323159Z",
+  "git_sha": "bb5962d",
+  "git_timestamp": "2023-05-29T15:32:17.000000000+02:00"
+}
+```
+
+(Build and git information in example output may be out of date.)
+
 ## License
 
 Sinoptik is licensed under the MIT license (see the `LICENSE` file or
