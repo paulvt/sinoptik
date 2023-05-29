@@ -21,6 +21,7 @@ use rocket::fairing::AdHoc;
 use rocket::http::Status;
 use rocket::response::Responder;
 use rocket::serde::json::Json;
+use rocket::serde::Serialize;
 use rocket::{get, routes, Build, Request, Rocket, State};
 
 use self::forecast::{forecast, Forecast, Metric};
@@ -84,12 +85,40 @@ impl<'r, 'o: 'r> Responder<'r, 'o> for Error {
     }
 }
 
-/// Result type that defaults to [`Error`] as the default error type.
-pub(crate) type Result<T, E = Error> = std::result::Result<T, E>;
-
 #[derive(Responder)]
 #[response(content_type = "image/png")]
 struct PngImageData(Vec<u8>);
+
+/// Result type that defaults to [`Error`] as the default error type.
+pub(crate) type Result<T, E = Error> = std::result::Result<T, E>;
+
+/// The version information as JSON response.
+#[derive(Debug, Serialize)]
+#[serde(crate = "rocket::serde")]
+struct VersionInfo {
+    /// The version of the build.
+    version: String,
+
+    /// The timestamp of the build.
+    timestamp: String,
+
+    /// The (most recent) git SHA used for the build.
+    git_sha: String,
+
+    /// The timestamp of the last git commit used for the build.
+    git_timestamp: String,
+}
+impl VersionInfo {
+    /// Retrieves the version information from the environment variables.
+    fn new() -> Self {
+        Self {
+            version: String::from(env!("CARGO_PKG_VERSION")),
+            timestamp: String::from(env!("VERGEN_BUILD_TIMESTAMP")),
+            git_sha: String::from(&env!("VERGEN_GIT_SHA")[0..7]),
+            git_timestamp: String::from(env!("VERGEN_GIT_COMMIT_TIMESTAMP")),
+        }
+    }
+}
 
 /// Handler for retrieving the forecast for an address.
 #[get("/forecast?<address>&<metrics>")]
@@ -150,6 +179,12 @@ async fn map_geo(
     image_data.map(PngImageData)
 }
 
+/// Returns the version information.
+#[get("/version", format = "application/json")]
+async fn version() -> Result<Json<VersionInfo>> {
+    Ok(Json(VersionInfo::new()))
+}
+
 /// Sets up Rocket.
 fn rocket(maps_handle: MapsHandle) -> Rocket<Build> {
     let maps_refresher = maps::run(Arc::clone(&maps_handle));
@@ -157,7 +192,13 @@ fn rocket(maps_handle: MapsHandle) -> Rocket<Build> {
     rocket::build()
         .mount(
             "/",
-            routes![forecast_address, forecast_geo, map_address, map_geo],
+            routes![
+                forecast_address,
+                forecast_geo,
+                map_address,
+                map_geo,
+                version
+            ],
         )
         .manage(maps_handle)
         .attach(AdHoc::on_liftoff("Maps refresher", |_| {
