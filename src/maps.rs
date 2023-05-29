@@ -567,7 +567,6 @@ pub(crate) async fn mark_map(
     tokio::task::spawn_blocking(move || {
         let maps = maps_handle.lock().expect("Maps handle lock was poisoned");
         let image = match metric {
-            Metric::PAQI => maps.pollen_mark(position),
             Metric::Pollen => maps.pollen_mark(position),
             Metric::UVI => maps.uvi_mark(position),
             _ => return Err(crate::Error::UnsupportedMetric(metric)),
