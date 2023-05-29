@@ -45,7 +45,8 @@ Currently supported metrics are:
 * O₃ concentration (per hour, from Luchtmeetnet)
 * Particulate matter (PM10) concentration (per hour, from Luchtmeetnet)
 * Pollen (per hour, from Buienradar)
-* Pollen/air quality index (per hour, from Buienradar)
+* Pollen/air quality index (per hour, combined from Buienradar and
+  Luchtmeetnet)
 * Precipitation (per 5 minutes, from Buienradar)
 * UV index (per day, from Buienradar)
 
