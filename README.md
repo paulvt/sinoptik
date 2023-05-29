@@ -217,10 +217,10 @@ an address fails or if the position is out of bounds of the map, nothing is
 returned (HTTP 404). If the maps cannot/have not been downloaded or cached yet,
 a service unavailable error is returned (HTTP 503).
 
-## Version endpoint
+## Version API endpoint
 
-The `/version` endpoint provides information of the current version and build
-of the service.  This can be used to check if it needs to be updated.
+The `/version` API endpoint provides information of the current version and
+build of the service.  This can be used to check if it needs to be updated.
 Again, there is no path and no query parameters, just:
 
 ```http
