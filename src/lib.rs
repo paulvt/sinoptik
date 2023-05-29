@@ -166,6 +166,15 @@ fn rocket(maps_handle: MapsHandle) -> Rocket<Build> {
                 let _refresher = rocket::tokio::spawn(maps_refresher);
             })
         }))
+        .attach(AdHoc::on_liftoff("Version", |_| {
+            Box::pin(async move {
+                let name = env!("CARGO_PKG_NAME");
+                let version = env!("CARGO_PKG_VERSION");
+                let git_sha = &env!("VERGEN_GIT_SHA")[0..7];
+
+                println!("🌁 Started {name} v{version} (git @{git_sha})");
+            })
+        }))
 }
 
 /// Sets up Rocket and the maps cache refresher task.
