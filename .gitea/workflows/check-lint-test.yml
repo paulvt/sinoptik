@@ -21,9 +21,6 @@ jobs:
           override: true
           components: rustfmt, clippy
 
-      - name: Use sparse Cargo index for crates.io
-        run: echo -e '[registries.crates-io]\nprotocol = "sparse"' >> /root/.cargo/config.toml
-
       - name: Run cargo check
         uses: https://github.com/actions-rs/cargo@v1
         with:

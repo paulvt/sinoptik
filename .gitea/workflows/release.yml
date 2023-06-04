@@ -27,9 +27,6 @@ jobs:
           toolchain: stable
           override: true
 
-      - name: Use sparse Cargo index for crates.io
-        run: echo -e '[registries.crates-io]\nprotocol = "sparse"' >> /root/.cargo/config.toml
-
       - name: Install cargo-deb
         uses: https://github.com/brndnmtthws/rust-action-cargo-binstall@v1
         with:
