@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.8] - 2023-06-05
+
+### Added
+
+* Print the version on lift off (#30)
+* Add a `/version` endpoint to the API (#30)
+
+### Changed
+
+* Update dependency on `cached`
+
+### Fixed
+
+* Properly attribute the PAQI metric in its description(s)
+
+### Removed
+
+* No longer provide a map for the PAQI metric; the map used is only for pollen
+
 ## [0.2.7] - 2023-05-26
 
 ### Fixed
@@ -112,7 +131,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Initial release.
 
-[Unreleased]: https://git.luon.net/paul/sinoptik/compare/v0.2.7...HEAD
+[Unreleased]: https://git.luon.net/paul/sinoptik/compare/v0.2.8...HEAD
+[0.2.8]: https://git.luon.net/paul/sinoptik/compare/v0.2.7...v0.2.8
 [0.2.7]: https://git.luon.net/paul/sinoptik/compare/v0.2.6...v0.2.7
 [0.2.6]: https://git.luon.net/paul/sinoptik/compare/v0.2.5...v0.2.6
 [0.2.5]: https://git.luon.net/paul/sinoptik/compare/v0.2.4...v0.2.5
