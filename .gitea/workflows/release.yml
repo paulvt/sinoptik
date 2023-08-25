@@ -108,5 +108,5 @@ jobs:
           DEB_REPO_TOKEN: '${{ secrets.DEB_REPO_TOKEN }}'
         run: |
           curl --config <(printf "user=%s:%s" paul "${DEB_REPO_TOKEN}") \
-            --upload-file target/debian/sandbox*.deb \
+            --upload-file target/debian/sinoptik*.deb \
             https://git.luon.net/api/packages/paul/debian/pool/bookworm/main/upload
