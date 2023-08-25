@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.9] - 2023-08-25
+
+### Changed
+
+* Update release Gitea Actions workflow; add seperate job to release Debian
+  package to the new repository
+
+### Security
+
+* Update dependencies ([RUSTSEC-2023-0044](https://rustsec.org/advisories/RUSTSEC-2023-0044))
+
 ## [0.2.8] - 2023-06-05
 
 ### Added
@@ -131,7 +142,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Initial release.
 
-[Unreleased]: https://git.luon.net/paul/sinoptik/compare/v0.2.8...HEAD
+[Unreleased]: https://git.luon.net/paul/sinoptik/compare/v0.2.9...HEAD
+[0.2.9]: https://git.luon.net/paul/sinoptik/compare/v0.2.8...v0.2.9
 [0.2.8]: https://git.luon.net/paul/sinoptik/compare/v0.2.7...v0.2.8
 [0.2.7]: https://git.luon.net/paul/sinoptik/compare/v0.2.6...v0.2.7
 [0.2.6]: https://git.luon.net/paul/sinoptik/compare/v0.2.5...v0.2.6
