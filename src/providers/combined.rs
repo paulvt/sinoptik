@@ -108,7 +108,7 @@ fn merge(
     // value.
     let items = pollen_samples
         .into_iter()
-        .zip(aqi_items.into_iter())
+        .zip(aqi_items)
         .map(|(pollen_sample, aqi_item)| {
             let time = pollen_sample.time;
             let value = (pollen_sample.score as f32).max(aqi_item.value);
