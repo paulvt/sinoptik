@@ -366,7 +366,7 @@ mod tests {
 
         // No metric selected, don't know which map to show?
         let response = client.get("/map?address=eindhoven").dispatch();
-        assert_eq!(response.status(), Status::NotFound);
+        assert_eq!(response.status(), Status::UnprocessableEntity);
     }
 
     #[test]
@@ -374,10 +374,6 @@ mod tests {
         let maps_handle = Arc::new(Mutex::new(Maps::new()));
         let maps_handle_clone = Arc::clone(&maps_handle);
         let client = Client::tracked(rocket(maps_handle)).expect("Not a valid Rocket instance");
-
-        // No metric passed, don't know which map to show?
-        let response = client.get("/map?lat=51.4&lon=5.5").dispatch();
-        assert_eq!(response.status(), Status::NotFound);
 
         // No maps available yet.
         let response = client.get("/map?lat=51.4&lon=5.5&metric=pollen").dispatch();
@@ -395,8 +391,12 @@ mod tests {
         assert_eq!(response.status(), Status::Ok);
         assert_eq!(response.content_type(), Some(ContentType::PNG));
 
+        // ... but not if it is out of bounds.
+        let response = client.get("/map?lat=0.0&lon=0.0&metric=pollen").dispatch();
+        assert_eq!(response.status(), Status::NotFound);
+
         // No metric passed, don't know which map to show?
         let response = client.get("/map?lat=51.4&lon=5.5").dispatch();
-        assert_eq!(response.status(), Status::NotFound);
+        assert_eq!(response.status(), Status::UnprocessableEntity);
     }
 }

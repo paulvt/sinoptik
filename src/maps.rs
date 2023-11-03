@@ -8,7 +8,7 @@ use std::f64::consts::PI;
 use std::sync::{Arc, Mutex};
 
 use chrono::serde::ts_seconds;
-use chrono::{DateTime, Duration, NaiveDateTime, Utc};
+use chrono::{DateTime, Duration, NaiveDateTime, TimeZone, Utc};
 use image::{
     DynamicImage, GenericImage, GenericImageView, ImageError, ImageFormat, Pixel, Rgb, Rgba,
 };
@@ -449,7 +449,7 @@ async fn retrieve_image(url: Url) -> Result<RetrievedMaps> {
             .ok_or_else(|| Error::InvalidImagePath(path.to_owned()))?;
         let timestamp = NaiveDateTime::parse_from_str(timestamp_str, "%Y%m%d%H%M")?;
 
-        DateTime::<Utc>::from_utc(timestamp, Utc)
+        Utc.from_utc_datetime(&timestamp)
     };
     let bytes = response.bytes().await?;
 
