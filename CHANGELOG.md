@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.10] - 2023-11-03
+
+### Security
+
+* Update dependencies
+  ([RUSTSEC-2020-0071](https://rustsec.org/advisories/RUSTSEC-2020-0071.html),
+  [RUSTSEC-2023-0044](https://rustsec.org/advisories/RUSTSEC-2023-0044.html))
+
+### Changed
+
+* Switch to Rocket 0.5 RC4
+* Update dependency on `cached`
+
+### Fixed
+
+* Fix clippy issues
+
 ## [0.2.9] - 2023-08-25
 
 ### Changed
@@ -142,7 +159,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Initial release.
 
-[Unreleased]: https://git.luon.net/paul/sinoptik/compare/v0.2.9...HEAD
+[Unreleased]: https://git.luon.net/paul/sinoptik/compare/v0.2.10...HEAD
+[0.2.10]: https://git.luon.net/paul/sinoptik/compare/v0.2.9...v0.2.10
 [0.2.9]: https://git.luon.net/paul/sinoptik/compare/v0.2.8...v0.2.9
 [0.2.8]: https://git.luon.net/paul/sinoptik/compare/v0.2.7...v0.2.8
 [0.2.7]: https://git.luon.net/paul/sinoptik/compare/v0.2.6...v0.2.7
