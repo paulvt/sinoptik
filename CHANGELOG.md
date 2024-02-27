@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.11] - 2024-02-27
+
+### Security
+
+* Updated dependencies, fixes security advisories:
+  * [RUSTSEC-2024-0003](https://rustsec.org/advisories/RUSTSEC-2024-0003)
+  * [RUSTSEC-2023-0072](https://rustsec.org/advisories/RUSTSEC-2024-0072)
+
+### Fixed
+
+* Fix clippy issue
+* Tweak/fix tests; reduce required accuracy for geocoded coordinates
+
 ## [0.2.10] - 2023-11-03
 
 ### Security
@@ -159,7 +172,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Initial release.
 
-[Unreleased]: https://git.luon.net/paul/sinoptik/compare/v0.2.10...HEAD
+[Unreleased]: https://git.luon.net/paul/sinoptik/compare/v0.2.11...HEAD
+[0.2.11]: https://git.luon.net/paul/sinoptik/compare/v0.2.10...v0.2.11
 [0.2.10]: https://git.luon.net/paul/sinoptik/compare/v0.2.9...v0.2.10
 [0.2.9]: https://git.luon.net/paul/sinoptik/compare/v0.2.8...v0.2.9
 [0.2.8]: https://git.luon.net/paul/sinoptik/compare/v0.2.7...v0.2.8
