@@ -109,7 +109,7 @@ pub(crate) async fn resolve_address(address: String) -> Result<Position> {
         let points: Vec<Point<f64>> = osm.forward(&address)?;
 
         points
-            .get(0)
+            .first()
             .ok_or(Error::NoPositionFound)
             .map(Position::from)
     })
