@@ -45,7 +45,7 @@ pub(crate) enum Error {
 
     /// Failed to join a task.
     #[error("Failed to join a task: {0}")]
-    Join(#[from] rocket::tokio::task::JoinError),
+    Join(#[from] tokio::task::JoinError),
 
     /// Did not find any known (map key) colors in samples.
     #[error("Did not find any known colors in samples")]
@@ -393,7 +393,7 @@ fn sample<I: GenericImageView<Pixel = Rgba<u8>>>(
             .expect("Maximum color is always a map key color") as u8;
 
         samples.push(Sample { time, score });
-        time += chrono::Duration::seconds(interval);
+        time += Duration::seconds(interval);
         offset += width;
     }
 
@@ -577,7 +577,7 @@ pub(crate) async fn mark_map(
         let mut image_data = Cursor::new(Vec::new());
         match image.write_to(
             &mut image_data,
-            image::ImageOutputFormat::from(image::ImageFormat::Png),
+            image::ImageOutputFormat::from(ImageFormat::Png),
         ) {
             Ok(()) => Ok(image_data.into_inner()),
             Err(err) => Err(crate::Error::from(Error::from(err))),

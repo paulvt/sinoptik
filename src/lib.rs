@@ -54,11 +54,11 @@ pub(crate) enum Error {
 
     /// Failed to merge AQI & pollen items.
     #[error("Failed to merge AQI & pollen items: {0}")]
-    Merge(#[from] self::providers::combined::MergeError),
+    Merge(#[from] providers::combined::MergeError),
 
     /// Failed to retrieve or sample the maps.
     #[error("Failed to retrieve or sample the maps: {0}")]
-    Maps(#[from] self::maps::Error),
+    Maps(#[from] maps::Error),
 
     /// No geocoded position could be found.
     #[error("No geocoded position could be found")]
