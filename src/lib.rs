@@ -185,10 +185,8 @@ async fn version() -> Result<Json<VersionInfo>> {
     Ok(Json(VersionInfo::new()))
 }
 
-/// Sets up Rocket.
-fn rocket(maps_handle: MapsHandle) -> Rocket<Build> {
-    let maps_refresher = maps::run(Arc::clone(&maps_handle));
-
+/// Sets up Rocket without fairings.
+fn rocket_core(maps_handle: MapsHandle) -> Rocket<Build> {
     rocket::build()
         .mount(
             "/",
@@ -201,6 +199,14 @@ fn rocket(maps_handle: MapsHandle) -> Rocket<Build> {
             ],
         )
         .manage(maps_handle)
+}
+
+/// Sets up Rocket.
+fn rocket(maps_handle: MapsHandle) -> Rocket<Build> {
+    let rocket = rocket_core(Arc::clone(&maps_handle));
+    let maps_refresher = maps::run(maps_handle);
+
+    rocket
         .attach(AdHoc::on_liftoff("Maps refresher", |_| {
             Box::pin(async move {
                 // We don't care about the join handle nor error results?
@@ -338,7 +344,8 @@ mod tests {
     fn map_address() {
         let maps_handle = Arc::new(Mutex::new(Maps::new()));
         let maps_handle_clone = Arc::clone(&maps_handle);
-        let client = Client::tracked(rocket(maps_handle)).expect("Not a valid Rocket instance");
+        let client =
+            Client::tracked(rocket_core(maps_handle)).expect("Not a valid Rocket instance");
 
         // No maps available yet.
         let response = client
@@ -373,7 +380,8 @@ mod tests {
     fn map_geo() {
         let maps_handle = Arc::new(Mutex::new(Maps::new()));
         let maps_handle_clone = Arc::clone(&maps_handle);
-        let client = Client::tracked(rocket(maps_handle)).expect("Not a valid Rocket instance");
+        let client =
+            Client::tracked(rocket_core(maps_handle)).expect("Not a valid Rocket instance");
 
         // No maps available yet.
         let response = client.get("/map?lat=51.4&lon=5.5&metric=pollen").dispatch();
@@ -400,4 +408,3 @@ mod tests {
         assert_eq!(response.status(), Status::UnprocessableEntity);
     }
 }
-
