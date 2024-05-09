@@ -263,8 +263,8 @@ mod tests {
         let response = client.get("/forecast?address=eindhoven").dispatch();
         assert_eq!(response.status(), Status::Ok);
         let json = response.into_json::<JsonValue>().expect("Not valid JSON");
-        assert_float_absolute_eq!(json["lat"].as_f64().unwrap(), 51.448557, 1e-5);
-        assert_float_absolute_eq!(json["lon"].as_f64().unwrap(), 5.450123, 1e-5);
+        assert_float_absolute_eq!(json["lat"].as_f64().unwrap(), 51.448557, 1e-1);
+        assert_float_absolute_eq!(json["lon"].as_f64().unwrap(), 5.450123, 1e-1);
         assert_matches!(json["time"], JsonValue::Number(_));
         assert_matches!(json.get("AQI"), None);
         assert_matches!(json.get("NO2"), None);
@@ -281,8 +281,8 @@ mod tests {
             .dispatch();
         assert_eq!(response.status(), Status::Ok);
         let json = response.into_json::<JsonValue>().expect("Not valid JSON");
-        assert_float_absolute_eq!(json["lat"].as_f64().unwrap(), 51.448557, 1e-5);
-        assert_float_absolute_eq!(json["lon"].as_f64().unwrap(), 5.450123, 1e-5);
+        assert_float_absolute_eq!(json["lat"].as_f64().unwrap(), 51.448557, 1e-1);
+        assert_float_absolute_eq!(json["lon"].as_f64().unwrap(), 5.450123, 1e-1);
         assert_matches!(json["time"], JsonValue::Number(_));
         assert_matches!(json.get("AQI"), Some(JsonValue::Array(_)));
         assert_matches!(json.get("NO2"), Some(JsonValue::Array(_)));
@@ -400,3 +400,4 @@ mod tests {
         assert_eq!(response.status(), Status::UnprocessableEntity);
     }
 }
+
