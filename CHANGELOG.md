@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.12] - 2024-05-09
+
+### Security
+
+* Updated dependencies, fixes security advisiories:
+  * [RUSTSEC-2024-0019](https://rustsec.org/advisories/RUSTSEC-2024-0019)
+  * [RUSTSEC-2024-0332](https://rustsec.org/advisories/RUSTSEC-2024-0332)
+
+### Changed
+
+* Update dependency on `cached`, `chrono-tz`, `image` and `reqwest`
+
+### Fixed
+
+* Fix tests; reduce required accuracy for geocoded coordinates again and
+  don't run background map updates during tests
+
 ## [0.2.11] - 2024-02-27
 
 ### Security
@@ -172,7 +189,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Initial release.
 
-[Unreleased]: https://git.luon.net/paul/sinoptik/compare/v0.2.11...HEAD
+[Unreleased]: https://git.luon.net/paul/sinoptik/compare/v0.2.12...HEAD
+[0.2.12]: https://git.luon.net/paul/sinoptik/compare/v0.2.11...v0.2.12
 [0.2.11]: https://git.luon.net/paul/sinoptik/compare/v0.2.10...v0.2.11
 [0.2.10]: https://git.luon.net/paul/sinoptik/compare/v0.2.9...v0.2.10
 [0.2.9]: https://git.luon.net/paul/sinoptik/compare/v0.2.8...v0.2.9
