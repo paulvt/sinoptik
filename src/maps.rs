@@ -575,10 +575,7 @@ pub(crate) async fn mark_map(
 
         // Encode the image as PNG image data.
         let mut image_data = Cursor::new(Vec::new());
-        match image.write_to(
-            &mut image_data,
-            image::ImageOutputFormat::from(ImageFormat::Png),
-        ) {
+        match image.write_to(&mut image_data, ImageFormat::Png) {
             Ok(()) => Ok(image_data.into_inner()),
             Err(err) => Err(crate::Error::from(Error::from(err))),
         }
