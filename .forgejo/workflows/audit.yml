@@ -1,0 +1,26 @@
+name: "Audit dependencies"
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '.forgejo/workflows/audit.yml'
+      - '**/Cargo.toml'
+      - '**/Cargo.lock'
+      - '**/audit.toml'
+  schedule:
+    - cron: '0 23 * * 6'
+  workflow_dispatch:
+
+jobs:
+  audit:
+    runs-on: rust-latest
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Run cargo audit
+        run: cargo audit
