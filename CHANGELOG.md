@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.13] - 2024-07-27
+
+### Changed
+
+* Switch to Forgejo Actions; add audit workflow
+* Update dependency on the `cached` crate
+* Switch build dependency on `vergen` to `vergen-git2`
+
+### Security
+
+* Update dependencies; this fixes security advisory
+  [RUSTSEC-2024-0357](https://rustsec.org/advisories/RUSTSEC-2024-0357)
+
 ## [0.2.12] - 2024-05-09
 
 ### Security
@@ -189,7 +202,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Initial release.
 
-[Unreleased]: https://git.luon.net/paul/sinoptik/compare/v0.2.12...HEAD
+[Unreleased]: https://git.luon.net/paul/sinoptik/compare/v0.2.13...HEAD
+[0.2.13]: https://git.luon.net/paul/sinoptik/compare/v0.2.12...v0.2.13
 [0.2.12]: https://git.luon.net/paul/sinoptik/compare/v0.2.11...v0.2.12
 [0.2.11]: https://git.luon.net/paul/sinoptik/compare/v0.2.10...v0.2.11
 [0.2.10]: https://git.luon.net/paul/sinoptik/compare/v0.2.9...v0.2.10
