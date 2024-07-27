@@ -1,0 +1,126 @@
+name: "Release"
+
+on:
+  push:
+    tags:
+      - v*
+
+jobs:
+  release:
+    name: "Release"
+    runs-on: rust-latest
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Determine the repository name and version of the release
+        run: |
+          REPO_NAME=$(basename $GITHUB_REPOSITORY)
+          VERSION=${GITHUB_REF_NAME#v}
+          echo "Releasing version of $REPO_NAME: $VERSION"
+          echo "REPO_NAME=$REPO_NAME" >> $GITHUB_ENV
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+
+      - name: Get the release notes from the changelog
+        run: |
+          EOF=$(dd if=/dev/urandom bs=15 count=1 status=none | base64)
+          RELEASE_NOTES=$(sed -n -e "/^## \[$VERSION\]/,/^## \[/{//"'!'"p;}" CHANGELOG.md | sed -e '1d;$d')
+          echo "Release notes:"
+          echo
+          echo "$RELEASE_NOTES"
+          echo "RELEASE_NOTES<<$EOF" >> "$GITHUB_ENV"
+          echo "$RELEASE_NOTES" >> "$GITHUB_ENV"
+          echo "$EOF" >> "$GITHUB_ENV"
+
+      - name: Build a release binary
+        run: |
+          # FIXME: This should be figured out in a better manner!
+          BIN_NAME=${REPO_NAME}-x86_64-unknown-linux-gnu
+          cargo build --release
+          mkdir -p dist
+          cp target/release/${REPO_NAME} dist/${BIN_NAME}
+          shasum -a 256 dist/${BIN_NAME} > dist/${BIN_NAME}.sha256sum
+
+      - name: Release to Forgejo
+        uses: paul/forgejo-release@main
+        with:
+          direction: upload
+          release-dir: dist
+          release-notes: '${{ env.RELEASE_NOTES }}'
+          title: 'Release ${{ env.VERSION }}'
+          token: '${{ secrets.RELEASE_TOKEN }}'
+
+  release-crate:
+    name: "Release Rust crate"
+    runs-on: rust-latest
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Run cargo publish
+        run: cargo publish --registry luon
+        env:
+          CARGO_REGISTRIES_LUON_INDEX: 'sparse+${{ github.server_url }}/api/packages/${{ github.repository_owner }}/cargo/'
+          CARGO_REGISTRIES_LUON_TOKEN: 'Bearer ${{ secrets.CARGO_TOKEN }}'
+
+  release-deb:
+    name: "Release Debian package"
+    runs-on: rust-latest
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Install and run cargo-deb
+        run: |
+          unset GITHUB_TOKEN
+          cargo binstall --only-signed -y cargo-deb
+          cargo deb
+
+      - name: Publish Debian package
+        env:
+          DEB_REPO_TOKEN: '${{ secrets.DEB_REPO_TOKEN }}'
+        run: |
+          curl --config <(printf "user=%s:%s" paul "${DEB_REPO_TOKEN}") \
+            --upload-file target/debian/*.deb \
+            ${{ github.server_url }}/api/packages/${{ github.repository_owner }}/debian/pool/bookworm/main/upload
+
+  release-docker-image:
+    name: "Release Docker image"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Determine Docker metadata
+        id: meta
+        uses: https://github.com/docker/metadata-action@v4
+        with:
+          images: |
+            git.luon.net/${{ github.repository }}
+          tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+
+      - name: Login to the Forgejo container registry
+        uses: https://github.com/docker/login-action@v2
+        with:
+          registry: git.luon.net
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.DOCKER_REGISTRY_TOKEN }}
+
+      - name: Docker build and push
+        uses: https://github.com/docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}

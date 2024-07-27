@@ -1,0 +1,33 @@
+name: "Check, lint and test"
+
+on:
+  pull_request:
+  push:
+    branches:
+     - main
+  workflow_dispatch:
+
+jobs:
+  check_lint:
+    name: Check, lint and test
+    runs-on: rust-latest
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v3
+
+      - name: Run cargo check
+        uses: https://github.com/actions-rs/cargo@v1
+        with:
+          command: check
+
+      - name: Run cargo clippy
+        uses: https://github.com/actions-rs/cargo@v1
+        with:
+          command: clippy
+          args: -- -D warnings
+
+      - name: Run cargo fmt
+          args: --all -- --check
+
+      - name: Run cargo test
+        run: cargo test --all-features
