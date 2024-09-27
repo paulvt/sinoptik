@@ -6,7 +6,7 @@
 use cached::proc_macro::cached;
 use chrono::serde::ts_seconds;
 use chrono::{DateTime, Datelike, Duration, NaiveTime, ParseError, TimeZone, Utc};
-use chrono_tz::Europe;
+use chrono_tz::{Europe, Tz};
 use csv::ReaderBuilder;
 use reqwest::Url;
 use rocket::serde::{Deserialize, Serialize};
@@ -48,6 +48,13 @@ pub(crate) struct Item {
     pub(crate) value: f32,
 }
 
+impl Item {
+    #[cfg(test)]
+    pub(crate) fn new(time: DateTime<Utc>, value: f32) -> Self {
+        Self { time, value }
+    }
+}
+
 impl TryFrom<Row> for Item {
     type Error = ParseError;
 
@@ -87,14 +94,12 @@ fn convert_value(v: u16) -> f32 {
     (value * 10.0).round() / 10.0
 }
 
-/// Fix the timestamps of the items either before or after the day boundary.
+/// Fix the timestamps of the items either before or after the day boundary with respect to now.
 ///
 /// If in the Europe/Amsterdam time zone it is still before 0:00, all timestamps after 0:00 need to
 /// be bumped up with a day. If it is already after 0:00, all timestamps before 0:00 need to be
 /// bumped back with a day.
-// TODO: If something in Sinoptik needs unit tests, it is this!
-fn fix_items_day_boundary(items: Vec<Item>) -> Vec<Item> {
-    let now = Utc::now().with_timezone(&Europe::Amsterdam);
+fn fix_items_day_boundary(items: Vec<Item>, now: DateTime<Tz>) -> Vec<Item> {
     // Use noon on the same day as "now" as a comparison moment.
     let noon = Europe::Amsterdam
         .with_ymd_and_hms(now.year(), now.month(), now.day(), 12, 0, 0)
@@ -155,7 +160,9 @@ async fn get_precipitation(position: Position) -> Result<Vec<Item>> {
         .map(|(it1, it2)| it1.time > it2.time)
         == Some(true)
     {
-        Ok(fix_items_day_boundary(items))
+        let now = Utc::now().with_timezone(&Europe::Amsterdam);
+
+        Ok(fix_items_day_boundary(items, now))
     } else {
         Ok(items)
     }
@@ -221,5 +228,68 @@ pub(crate) async fn get_items(position: Position, metric: Metric) -> Result<Vec<
     match metric {
         Metric::Precipitation => get_precipitation(position).await,
         _ => Err(Error::UnsupportedMetric(metric)),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn fix_items_day_boundary() {
+        let t_0 = Utc.with_ymd_and_hms(2024, 1, 10, 22, 0, 0).unwrap(); // 2024-1-10 22:00:00
+        let t_1 = Utc.with_ymd_and_hms(2024, 1, 10, 23, 0, 0).unwrap(); // 2024-1-10 23:00:00
+        let t_2 = Utc.with_ymd_and_hms(2024, 1, 10, 2, 0, 0).unwrap(); //  2024-1-10 2:00:00
+
+        // The first and last item are on the same day as now (at 21:55).
+        let now = Utc
+            .with_ymd_and_hms(2024, 1, 10, 21, 55, 0)
+            .unwrap()
+            .with_timezone(&Europe::Amsterdam);
+        let items = Vec::from([
+            Item::new(t_0, 2.9),
+            /* Items in between do not matter */
+            Item::new(t_1, 3.0),
+        ]);
+        assert_eq!(
+            super::fix_items_day_boundary(items, now),
+            Vec::from([Item::new(t_0, 2.9), Item::new(t_1, 3.0)])
+        );
+
+        // The last item is on the next day (2024-1-11) with respect to now (at 21:55).
+        let now = Utc
+            .with_ymd_and_hms(2024, 1, 10, 21, 55, 0)
+            .unwrap()
+            .with_timezone(&Europe::Amsterdam);
+        let items = Vec::from([
+            Item::new(t_0, 2.9),
+            /* Items in between do not matter */
+            Item::new(t_2, 3.0),
+        ]);
+        assert_eq!(
+            super::fix_items_day_boundary(items, now),
+            Vec::from([
+                Item::new(t_0, 2.9),
+                Item::new(t_2.with_day(11).unwrap(), 3.0)
+            ])
+        );
+
+        // The first item is on the previous day (2024-1-9) with respect to now (at 1:55).
+        let now = Utc
+            .with_ymd_and_hms(2024, 1, 10, 1, 55, 0)
+            .unwrap()
+            .with_timezone(&Europe::Amsterdam);
+        let items = Vec::from([
+            Item::new(t_0, 2.9),
+            /* Items in between do not matter */
+            Item::new(t_2, 3.0),
+        ]);
+        assert_eq!(
+            super::fix_items_day_boundary(items, now),
+            Vec::from([
+                Item::new(t_0.with_day(9).unwrap(), 2.9),
+                Item::new(t_2, 3.0)
+            ])
+        );
     }
 }
