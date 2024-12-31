@@ -1,0 +1,18 @@
+{
+  "extends": [
+    "config:recommended"
+  ],
+  "osvVulnerabilityAlerts": true,
+  "packageRules": [
+    {
+      "matchUpdateTypes": [
+        "minor",
+        "patch",
+        "pin",
+        "digest"
+      ],
+      "automerge": true
+    }
+  ],
+  "rangeStrategy": "update-lockfile"
+}
