@@ -12,7 +12,7 @@ repository = "https://git.luon.net/paul/sinoptik"
 license = "MIT"
 
 [dependencies]
-cached = { version = "0.53.1", features = ["async"] }
+cached = { version = "0.54.0", features = ["async"] }
 chrono = "0.4.19"
 chrono-tz = "0.10.0"
 csv = "1.1.6"
