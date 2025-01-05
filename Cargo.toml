@@ -14,7 +14,7 @@ license = "MIT"
 [dependencies]
 cached = { version = "0.53.1", features = ["async"] }
 chrono = "0.4.19"
-chrono-tz = "0.9.0"
+chrono-tz = "0.10.0"
 csv = "1.1.6"
 geocoding = "0.4.0"
 image = { version = "0.25.1", default-features = false, features = ["png"]}
