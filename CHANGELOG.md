@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.14] - 2025-03-23
+
+### Added
+
+* Add Renovate config with recommended settings
+* Add tests for Buienradar raintext parsing
+
+### Changed
+
+* Update the dependencies on `cached`, `chrono-tz`, `reqwest` and `thiserror`
+
+### Fixed
+
+* Fix some typos
+
+### Security
+
+* Updated dependencies, fixes security advisories:
+  * [RUSTSEC-2024-0421](https://rustsec.org/advisories/RUSTSEC-2024-0421)
+  * [RUSTSEC-2025-0004](https://rustsec.org/advisories/RUSTSEC-2025-0004)
+  * [RUSTSEC-2025-0009](https://rustsec.org/advisories/RUSTSEC-2025-0009)
+
+
 ## [0.2.13] - 2024-07-27
 
 ### Changed
@@ -202,7 +225,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Initial release.
 
-[Unreleased]: https://git.luon.net/paul/sinoptik/compare/v0.2.13...HEAD
+[Unreleased]: https://git.luon.net/paul/sinoptik/compare/v0.2.14...HEAD
+[0.2.14]: https://git.luon.net/paul/sinoptik/compare/v0.2.13...v0.2.14
 [0.2.13]: https://git.luon.net/paul/sinoptik/compare/v0.2.12...v0.2.13
 [0.2.12]: https://git.luon.net/paul/sinoptik/compare/v0.2.11...v0.2.12
 [0.2.11]: https://git.luon.net/paul/sinoptik/compare/v0.2.10...v0.2.11
