@@ -71,7 +71,7 @@ pub(crate) enum Error {
 
 impl<'r, 'o: 'r> Responder<'r, 'o> for Error {
     fn respond_to(self, _request: &'r Request<'_>) -> rocket::response::Result<'o> {
-        eprintln!("💥 Encountered error during request: {}", self);
+        eprintln!("💥 Encountered error during request: {self}");
 
         let status = match self {
             Error::NoPositionFound => Status::NotFound,

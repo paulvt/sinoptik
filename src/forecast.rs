@@ -79,7 +79,7 @@ impl Forecast {
     }
 
     fn log_error(&mut self, metric: Metric, error: Error) {
-        eprintln!("💥 Encountered error during forecast: {}", error);
+        eprintln!("💥 Encountered error during forecast: {error}");
         self.errors.insert(metric, error.to_string());
     }
 }

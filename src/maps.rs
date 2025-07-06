@@ -473,7 +473,7 @@ async fn retrieve_pollen_maps() -> Result<RetrievedMaps> {
     let mut url = Url::parse(POLLEN_BASE_URL).unwrap();
     url.query_pairs_mut().append_pair("timestamp", &timestamp);
 
-    println!("🗺️  Refreshing pollen maps from: {}", url);
+    println!("🗺️  Refreshing pollen maps from: {url}");
     retrieve_image(url).await
 }
 
@@ -485,7 +485,7 @@ async fn retrieve_uvi_maps() -> Result<RetrievedMaps> {
     let mut url = Url::parse(UVI_BASE_URL).unwrap();
     url.query_pairs_mut().append_pair("timestamp", &timestamp);
 
-    println!("🗺️  Refreshing UV index maps from: {}", url);
+    println!("🗺️  Refreshing UV index maps from: {url}");
     retrieve_image(url).await
 }
 
@@ -595,7 +595,7 @@ pub(crate) async fn run(maps_handle: MapsHandle) {
         if maps_handle.needs_pollen_refresh() {
             let retrieved_maps = retrieve_pollen_maps().await;
             if let Err(e) = retrieved_maps.as_ref() {
-                eprintln!("💥 Encountered error during pollen maps refresh: {}", e);
+                eprintln!("💥 Encountered error during pollen maps refresh: {e}");
             }
             maps_handle.set_pollen(retrieved_maps);
         }
@@ -603,7 +603,7 @@ pub(crate) async fn run(maps_handle: MapsHandle) {
         if maps_handle.needs_uvi_refresh() {
             let retrieved_maps = retrieve_uvi_maps().await;
             if let Err(e) = retrieved_maps.as_ref() {
-                eprintln!("💥 Encountered error during UVI maps refresh: {}", e);
+                eprintln!("💥 Encountered error during UVI maps refresh: {e}");
             }
             maps_handle.set_uvi(retrieved_maps);
         }

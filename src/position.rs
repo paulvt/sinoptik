@@ -103,7 +103,7 @@ impl Eq for Position {}
 /// Note that only the 100 least recently used addresses will be cached.
 #[cached(size = 100, result = true)]
 pub(crate) async fn resolve_address(address: String) -> Result<Position> {
-    println!("🌍 Geocoding the position of the address: {}", address);
+    println!("🌍 Geocoding the position of the address: {address}");
     tokio::task::spawn_blocking(move || {
         let osm = Openstreetmap::new();
         let points: Vec<Point<f64>> = osm.forward(&address)?;
