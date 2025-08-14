@@ -2,6 +2,8 @@
 //!
 //! This combines and collates data using the other providers.
 
+use std::time::Duration;
+
 use cached::proc_macro::cached;
 use chrono::serde::ts_seconds;
 use chrono::{DateTime, Utc};

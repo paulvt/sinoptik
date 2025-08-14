@@ -3,9 +3,11 @@
 //! For more information about Buienradar, see: <https://www.buienradar.nl/overbuienradar/contact>
 //! and <https://www.buienradar.nl/overbuienradar/gratis-weerdata>.
 
+use std::time::Duration;
+
 use cached::proc_macro::cached;
 use chrono::serde::ts_seconds;
-use chrono::{DateTime, Datelike, Duration, NaiveTime, ParseError, TimeZone, Utc};
+use chrono::{DateTime, Datelike, NaiveTime, ParseError, TimeZone, Utc};
 use chrono_tz::{Europe, Tz};
 use csv::ReaderBuilder;
 use reqwest::Url;
@@ -112,7 +114,7 @@ fn fix_items_day_boundary(items: Vec<Item>, now: DateTime<Tz>) -> Vec<Item> {
             .into_iter()
             .map(|mut item| {
                 if item.time > noon {
-                    item.time -= Duration::days(1)
+                    item.time -= chrono::Duration::days(1)
                 }
                 item
             })
@@ -123,7 +125,7 @@ fn fix_items_day_boundary(items: Vec<Item>, now: DateTime<Tz>) -> Vec<Item> {
             .into_iter()
             .map(|mut item| {
                 if item.time < noon {
-                    item.time += Duration::days(1)
+                    item.time += chrono::Duration::days(1)
                 }
                 item
             })

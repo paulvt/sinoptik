@@ -2,9 +2,11 @@
 //!
 //! For more information about Luchtmeetnet, see: <https://www.luchtmeetnet.nl/contact>.
 
+use std::time::Duration;
+
 use cached::proc_macro::cached;
 use chrono::serde::ts_seconds;
-use chrono::{DateTime, Duration, Utc};
+use chrono::{DateTime, Utc};
 use reqwest::Url;
 use rocket::serde::{Deserialize, Serialize};
 
@@ -74,7 +76,7 @@ pub(crate) async fn get(position: Position, metric: Metric) -> Result<Vec<Item>>
     let root: Container = response.error_for_status()?.json().await?;
 
     // Filter items that are older than one hour before now. They seem to occur sometimes?
-    let too_old = Utc::now() - Duration::hours(1);
+    let too_old = Utc::now() - chrono::Duration::hours(1);
     let items = root
         .data
         .into_iter()
