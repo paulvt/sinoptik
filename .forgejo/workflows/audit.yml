@@ -1,4 +1,5 @@
 name: "Audit dependencies"
+enable-email-notifications: true
 
 on:
   push:
