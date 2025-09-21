@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.15] - 2025-09-21
+
+### Changed
+
+* Enable email notifications for all Forgejo Actions workflows
+
+### Security
+
+* Updated dependencies, fixes security advisories:
+  * [RUSTSEC-2025-0022](https://rustsec.org/advisories/RUSTSEC-2025-0022.html)
+  * [RUSTSEC-2025-0023](https://rustsec.org/advisories/RUSTSEC-2025-0023.html)
+
 ## [0.2.14] - 2025-03-23
 
 ### Added
@@ -225,7 +237,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Initial release.
 
-[Unreleased]: https://git.luon.net/paul/sinoptik/compare/v0.2.14...HEAD
+[Unreleased]: https://git.luon.net/paul/sinoptik/compare/v0.2.15...HEAD
+[0.2.15]: https://git.luon.net/paul/sinoptik/compare/v0.2.14...v0.2.15
 [0.2.14]: https://git.luon.net/paul/sinoptik/compare/v0.2.13...v0.2.14
 [0.2.13]: https://git.luon.net/paul/sinoptik/compare/v0.2.12...v0.2.13
 [0.2.12]: https://git.luon.net/paul/sinoptik/compare/v0.2.11...v0.2.12
