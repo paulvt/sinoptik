@@ -27,7 +27,7 @@ assert_float_eq = "1.1.3"
 assert_matches = "1.5.0"
 
 [build-dependencies]
-vergen-git2 = { version = "1.0.0", features = ["build"] }
+vergen-git2 = { version = "9.0.0", features = ["build"] }
 
 [package.metadata.deb]
 maintainer = "Paul van Tilburg <paul@luon.net>"
