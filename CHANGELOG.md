@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.16] - 2026-03-14
+
+### Changed
+
+* Update the build dependency on `vergen-git2`
+* Drop dependency on `vergen-git2`
+
+### Security
+
+* Updated dependencies, fixes security advisories:
+  * [RUSTSEC-2026-0008](https://rustsec.org/advisories/RUSTSEC-2026-0008.html)
+  * [RUSTSEC-2026-0037](https://rustsec.org/advisories/RUSTSEC-2026-0037.html)
+
 ## [0.2.15] - 2025-09-21
 
 ### Changed
@@ -237,7 +250,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Initial release.
 
-[Unreleased]: https://git.luon.net/paul/sinoptik/compare/v0.2.15...HEAD
+[Unreleased]: https://git.luon.net/paul/sinoptik/compare/v0.2.16...HEAD
+[0.2.16]: https://git.luon.net/paul/sinoptik/compare/v0.2.15...v0.2.16
 [0.2.15]: https://git.luon.net/paul/sinoptik/compare/v0.2.14...v0.2.15
 [0.2.14]: https://git.luon.net/paul/sinoptik/compare/v0.2.13...v0.2.14
 [0.2.13]: https://git.luon.net/paul/sinoptik/compare/v0.2.12...v0.2.13
