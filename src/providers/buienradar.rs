@@ -3,8 +3,6 @@
 //! For more information about Buienradar, see: <https://www.buienradar.nl/overbuienradar/contact>
 //! and <https://www.buienradar.nl/overbuienradar/gratis-weerdata>.
 
-use std::time::Duration;
-
 use cached::proc_macro::cached;
 use chrono::serde::ts_seconds;
 use chrono::{DateTime, Datelike, NaiveTime, ParseError, TimeZone, Utc};
