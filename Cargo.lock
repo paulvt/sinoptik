@@ -2347,7 +2347,7 @@ checksum = "e320a6c5ad31d271ad523dcf3ad13e2767ad8b1cb8f047f75a8aeaf8da139da2"
 
 [[package]]
 name = "sinoptik"
-version = "0.2.15"
+version = "0.2.16"
 dependencies = [
  "assert_float_eq",
  "assert_matches",
