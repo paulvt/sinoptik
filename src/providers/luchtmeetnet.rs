@@ -2,7 +2,7 @@
 //!
 //! For more information about Luchtmeetnet, see: <https://www.luchtmeetnet.nl/contact>.
 
-use cached::proc_macro::cached;
+use cached::macros::cached;
 use chrono::serde::ts_seconds;
 use chrono::{DateTime, Utc};
 use reqwest::Url;
@@ -54,7 +54,7 @@ impl Item {
 /// * [`Metric::NO2`]
 /// * [`Metric::O3`]
 /// * [`Metric::PM10`]
-#[cached(time = 1800, result = true)]
+#[cached(ttl = 1800)]
 pub(crate) async fn get(position: Position, metric: Metric) -> Result<Vec<Item>> {
     let formula = match metric {
         Metric::AQI => "lki",

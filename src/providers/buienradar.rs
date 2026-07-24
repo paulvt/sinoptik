@@ -3,7 +3,7 @@
 //! For more information about Buienradar, see: <https://www.buienradar.nl/overbuienradar/contact>
 //! and <https://www.buienradar.nl/overbuienradar/gratis-weerdata>.
 
-use cached::proc_macro::cached;
+use cached::macros::cached;
 use chrono::serde::ts_seconds;
 use chrono::{DateTime, Datelike, NaiveTime, ParseError, TimeZone, Utc};
 use chrono_tz::{Europe, Tz};
@@ -134,7 +134,7 @@ fn fix_items_day_boundary(items: Vec<Item>, now: DateTime<Tz>) -> Vec<Item> {
 /// Retrieves the Buienradar forecasted precipitation items for the provided position.
 ///
 /// If the result is [`Ok`] it will be cached for 5 minutes for the the given position.
-#[cached(time = 300, result = true)]
+#[cached(ttl = 300)]
 async fn get_precipitation(position: Position) -> Result<Vec<Item>> {
     let mut url = Url::parse(BUIENRADAR_BASE_URL).unwrap();
     url.query_pairs_mut()
@@ -171,12 +171,7 @@ async fn get_precipitation(position: Position) -> Result<Vec<Item>> {
 /// Retrieves the Buienradar forecasted pollen samples for the provided position.
 ///
 /// If the result is [`Ok`] if will be cached for 1 hour for the given position.
-#[cached(
-    time = 3_600,
-    key = "Position",
-    convert = r#"{ position }"#,
-    result = true
-)]
+#[cached(key = "Position", convert = r#"{ position }"#, ttl = 3_600)]
 async fn get_pollen(position: Position, maps_handle: &MapsHandle) -> Result<Vec<Sample>> {
     maps_handle
         .lock()
@@ -188,12 +183,7 @@ async fn get_pollen(position: Position, maps_handle: &MapsHandle) -> Result<Vec<
 /// Retrieves the Buienradar forecasted UV index samples for the provided position.
 ///
 /// If the result is [`Ok`] if will be cached for 1 day for the given position.
-#[cached(
-    time = 86_400,
-    key = "Position",
-    convert = r#"{ position }"#,
-    result = true
-)]
+#[cached(key = "Position", convert = r#"{ position }"#, ttl = 86_400)]
 async fn get_uvi(position: Position, maps_handle: &MapsHandle) -> Result<Vec<Sample>> {
     maps_handle
         .lock()

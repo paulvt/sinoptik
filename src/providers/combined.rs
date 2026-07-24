@@ -2,7 +2,7 @@
 //!
 //! This combines and collates data using the other providers.
 
-use cached::proc_macro::cached;
+use cached::macros::cached;
 use chrono::serde::ts_seconds;
 use chrono::{DateTime, Utc};
 use rocket::serde::Serialize;
@@ -125,10 +125,9 @@ fn merge(
 /// It supports the following metric:
 /// * [`Metric::PAQI`]
 #[cached(
-    time = 1800,
     key = "(Position, Metric)",
     convert = r#"{ (position, metric) }"#,
-    result = true
+    ttl = 1800
 )]
 pub(crate) async fn get(
     position: Position,

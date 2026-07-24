@@ -5,7 +5,7 @@
 use std::f64::consts::PI;
 use std::hash::Hash;
 
-use cached::proc_macro::cached;
+use cached::macros::cached;
 use geocoding::{Forward, Openstreetmap, Point};
 use rocket::tokio;
 
@@ -101,7 +101,7 @@ impl Eq for Position {}
 ///
 /// If the result is [`Ok`], it will be cached.
 /// Note that only the 100 least recently used addresses will be cached.
-#[cached(size = 100, result = true)]
+#[cached(max_size = 100)]
 pub(crate) async fn resolve_address(address: String) -> Result<Position> {
     println!("🌍 Geocoding the position of the address: {address}");
     tokio::task::spawn_blocking(move || {
