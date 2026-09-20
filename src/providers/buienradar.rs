@@ -134,7 +134,7 @@ fn fix_items_day_boundary(items: Vec<Item>, now: DateTime<Tz>) -> Vec<Item> {
 /// Retrieves the Buienradar forecasted precipitation items for the provided position.
 ///
 /// If the result is [`Ok`] it will be cached for 5 minutes for the the given position.
-#[cached(ttl = 300)]
+#[cached(ttl_secs = 300)]
 async fn get_precipitation(position: Position) -> Result<Vec<Item>> {
     let mut url = Url::parse(BUIENRADAR_BASE_URL).unwrap();
     url.query_pairs_mut()
@@ -171,7 +171,7 @@ async fn get_precipitation(position: Position) -> Result<Vec<Item>> {
 /// Retrieves the Buienradar forecasted pollen samples for the provided position.
 ///
 /// If the result is [`Ok`] if will be cached for 1 hour for the given position.
-#[cached(key = "Position", convert = r#"{ position }"#, ttl = 3_600)]
+#[cached(key = "Position", convert = r#"{ position }"#, ttl_secs = 3_600)]
 async fn get_pollen(position: Position, maps_handle: &MapsHandle) -> Result<Vec<Sample>> {
     maps_handle
         .lock()
@@ -183,7 +183,7 @@ async fn get_pollen(position: Position, maps_handle: &MapsHandle) -> Result<Vec<
 /// Retrieves the Buienradar forecasted UV index samples for the provided position.
 ///
 /// If the result is [`Ok`] if will be cached for 1 day for the given position.
-#[cached(key = "Position", convert = r#"{ position }"#, ttl = 86_400)]
+#[cached(key = "Position", convert = r#"{ position }"#, ttl_secs = 86_400)]
 async fn get_uvi(position: Position, maps_handle: &MapsHandle) -> Result<Vec<Sample>> {
     maps_handle
         .lock()

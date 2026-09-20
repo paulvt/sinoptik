@@ -127,7 +127,7 @@ fn merge(
 #[cached(
     key = "(Position, Metric)",
     convert = r#"{ (position, metric) }"#,
-    ttl = 1800
+    ttl_secs = 1800
 )]
 pub(crate) async fn get(
     position: Position,

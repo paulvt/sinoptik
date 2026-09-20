@@ -54,7 +54,7 @@ impl Item {
 /// * [`Metric::NO2`]
 /// * [`Metric::O3`]
 /// * [`Metric::PM10`]
-#[cached(ttl = 1800)]
+#[cached(ttl_secs = 1800)]
 pub(crate) async fn get(position: Position, metric: Metric) -> Result<Vec<Item>> {
     let formula = match metric {
         Metric::AQI => "lki",
